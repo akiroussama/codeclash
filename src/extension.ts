@@ -9,7 +9,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage(`File saved: ${document.fileName}`);
 
     // Send data to the server
-    axios.post('http://localhost:3000/update', {
+    axios.post('https://codeclashserver.onrender.com/update', {
       fileName: document.fileName,
       timestamp: new Date().toISOString()
     }).then(response => {
