@@ -2,7 +2,7 @@
   "name": "codeclash",
   "displayName": "CodeClash",
   "description": "Multiplayer Coding Competition",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "oakir",
   "engines": {
     "vscode": "*"
