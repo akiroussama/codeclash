@@ -2,16 +2,16 @@
   "name": "codeclash",
   "displayName": "CodeClash",
   "description": "Multiplayer Coding Competition",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "publisher": "oakir",
   "engines": {
-    "vscode": "*"
+    "vscode": "^1.95.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onCommand:extension.runTests"
   ],
   "main": "./dist/extension.js",
   "contributes": {

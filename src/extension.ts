@@ -36,7 +36,10 @@ function activate(context: any) {
       // Send the results to the backend
       axios.post('https://codeclashserver.onrender.com/test-results', {
         data: testResults,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development', // Additional metadata
+        vscodeVersion: vscode.version, // VSCode version
+        platform: process.platform // OS platform
       })
         .then((response: any) => {
           vscode.window.showInformationMessage('Test results sent successfully!');
@@ -55,9 +58,15 @@ function parseTestResults(output: any, username: string) {
   const passed = (output.match(/✓/g) || []).length;
   const failed = (output.match(/✗/g) || []).length;
   
+  // Extract additional information such as test names and durations
+  const testDetails = output.split('\n').map((line:any) => {
+    const match = line.match(/(✓|✗)\s+(.+?)\s+\((\d+ms)\)/);
+    return match ? { status: match[1], name: match[2], duration: match[3] } : null;
+  }).filter(Boolean);
+
   const date = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD format
 
-  return { username, date, passed, failed };
+  return { username, date, passed, failed, testDetails };
 }
 
 exports.activate = activate;
