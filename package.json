@@ -3,6 +3,7 @@
   "displayName": "CodeClash",
   "description": "Multiplayer Coding Competition",
   "version": "0.0.1",
+  "publisher": "oakir",
   "engines": {
     "vscode": "^1.95.0"
   },
