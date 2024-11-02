@@ -1,62 +1,37 @@
 {
-  "name": "codeclash",
-  "displayName": "CodeClash",
-  "description": "Multiplayer Coding Competition",
-  "version": "1.0.7",
-  "publisher": "oakir",
+  "name": "vscode-test-monitor",
+  "displayName": "Test Monitor",
+  "description": "Monitor npm test results",
+  "version": "0.0.1",
   "engines": {
-    "vscode": "^1.95.0"
+    "vscode": "^1.85.0"
   },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onCommand:extension.runTests"
-  ],
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:test-monitor.start"],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "codeclash.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "codeclash.runTests",
-        "title": "Run Tests",
-        "description": "Run the tests for the current file"
+        "command": "test-monitor.start",
+        "title": "Start Test Monitor"
       }
     ]
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/akiroussama/codeclash.git"
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.9",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.95.0",
-    "@typescript-eslint/eslint-plugin": "^8.10.0",
-    "@typescript-eslint/parser": "^8.7.0",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.13.0",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.6.3",
-    "webpack": "^5.95.0",
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^16.18.34",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "eslint": "^8.47.0",
+    "typescript": "^5.2.2",
+    "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4"
-  },
-  "dependencies": {
-    "axios": "^1.7.7"
   }
 }

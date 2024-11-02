@@ -1,81 +1,92 @@
-const vscode = require('vscode');
-const { exec } = require('child_process');
-const axios = require('axios');
+import * as vscode from 'vscode';
+import { exec } from 'child_process';
 
-function activate(context: any) {
-  console.log('Extension "CodeClash" is now active!');
+export function activate(context: vscode.ExtensionContext) {
+    let statusBarItem: vscode.StatusBarItem;
+    let testOutputChannel: vscode.OutputChannel;
 
-  // Retrieve stored username or prompt for it
-  let username = context.globalState.get('username');
-  console.log('Retrieved username:', username);
-  if (!username) {
-    vscode.window.showInputBox({ prompt: 'Enter your username' }).then((input: any) => {
-      if (input) {
-        username = input;
-        context.globalState.update('username', username);
-        console.log('Username updated:', username);
-      } else {
-        vscode.window.showErrorMessage('Username is required to use this extension.');
-        return;
-      }
-    });
-  }
+    // Create status bar item
+    statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+    testOutputChannel = vscode.window.createOutputChannel('Test Monitor');
 
-  let disposable = vscode.commands.registerCommand('codeclash.runTests', function () {
-    console.log('Command "codeclash.runTests" executed');
-    if (!username) {
-      vscode.window.showErrorMessage('Username is required to run tests.');
-      return;
-    }
+    // Register command
+    let disposable = vscode.commands.registerCommand('test-monitor.start', () => {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders) {
+            vscode.window.showErrorMessage('No workspace folder found');
+            return;
+        }
 
-    // Run the test command
-    exec('npm run test', (error: any, stdout: any, stderr: any) => {
-      console.log('Running tests...');
-      console.log('stdout:', stdout);
-      console.log('stderr:', stderr);
-      if (error) {
-        console.error(`exec error: ${error}`);
-        return;
-      }
+        const workspacePath = workspaceFolders[0].uri.fsPath;
+        
+        // Update status bar
+        statusBarItem.text = "$(sync~spin) Running tests...";
+        statusBarItem.show();
 
-      // Parse the test results from stdout
-      const testResults = parseTestResults(stdout, username);
-      console.log('Parsed test results:', testResults);
+        // Execute npm test
+        const child = exec('npm run test', {
+            cwd: workspacePath
+        });
 
-      // Send the results to the backend
-      axios.post('http://localhost:3000/test-results', {
-        data: testResults,
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development', // Additional metadata
-        vscodeVersion: vscode.version, // VSCode version
-        platform: process.platform // OS platform
-      })
-        .then((response: any) => {
-          vscode.window.showInformationMessage('Test results sent successfully!');
-        })
-        .catch((error: any) => {
-          vscode.window.showErrorMessage('Failed to send test results.');
-          console.error(error);
+        let output = '';
+        let errorOutput = '';
+
+        child.stdout?.on('data', (data) => {
+            output += data;
+            testOutputChannel.append(data);
+        });
+
+        child.stderr?.on('data', (data) => {
+            errorOutput += data;
+            testOutputChannel.append(data);
+        });
+
+        child.on('close', (code) => {
+            // Parse test results
+            const results = parseTestResults(output);
+            
+            // Update status bar with results
+            if (code === 0) {
+                statusBarItem.text = `$(check) Tests: ${results.passed} passed`;
+                statusBarItem.backgroundColor = new vscode.ThemeColor('statusBar.background');
+            } else {
+                statusBarItem.text = `$(error) Tests: ${results.failed} failed, ${results.passed} passed`;
+                statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+            }
+
+            // Show notification
+            if (code === 0) {
+                vscode.window.showInformationMessage(`All tests passed! (${results.passed} tests)`);
+            } else {
+                vscode.window.showErrorMessage(`Tests failed: ${results.failed} failed, ${results.passed} passed`);
+            }
+
+            testOutputChannel.show();
         });
     });
-  });
-  context.subscriptions.push(disposable);
+
+    context.subscriptions.push(disposable, statusBarItem, testOutputChannel);
 }
 
-function parseTestResults(output: any, username: string) {
-  // Implement logic to parse the test results from the output
-  const passed = (output.match(/✓/g) || []).length;
-  const failed = (output.match(/✗/g) || []).length;
-  
-  // Extract additional information such as test names and durations
-  const testDetails = output.split('\n').map((line:any) => {
-    const match = line.match(/(✓|✗)\s+(.+?)\s+\((\d+ms)\)/);
-    return match ? { status: match[1], name: match[2], duration: match[3] } : null;
-  }).filter(Boolean);
+function parseTestResults(output: string): { passed: number; failed: number } {
+    // This is a simple parser - you might need to adjust it based on your test runner's output
+    const results = {
+        passed: 0,
+        failed: 0
+    };
 
-  const date = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD format
+    // Look for common test output patterns
+    const passedMatch = output.match(/(\d+)\s*passing/i);
+    const failedMatch = output.match(/(\d+)\s*failing/i);
 
-  return { username, date, passed, failed, testDetails };
+    if (passedMatch) {
+        results.passed = parseInt(passedMatch[1]);
+    }
+    if (failedMatch) {
+        results.failed = parseInt(failedMatch[1]);
+    }
+
+    return results;
 }
 
-exports.activate = activate;
+export function deactivate() {}
