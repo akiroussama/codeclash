@@ -19,6 +19,11 @@
       {
         "command": "codeclash.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "codeclash.runTests",
+        "title": "Run Tests",
+        "description": "Run the tests for the current file"
       }
     ]
   },

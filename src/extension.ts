@@ -3,13 +3,17 @@ const { exec } = require('child_process');
 const axios = require('axios');
 
 function activate(context: any) {
+  console.log('Extension "CodeClash" is now active!');
+
   // Retrieve stored username or prompt for it
   let username = context.globalState.get('username');
+  console.log('Retrieved username:', username);
   if (!username) {
-    vscode.window.showInputBox({ prompt: 'Enter your username' }).then((input:any) => {
+    vscode.window.showInputBox({ prompt: 'Enter your username' }).then((input: any) => {
       if (input) {
         username = input;
         context.globalState.update('username', username);
+        console.log('Username updated:', username);
       } else {
         vscode.window.showErrorMessage('Username is required to use this extension.');
         return;
@@ -17,7 +21,8 @@ function activate(context: any) {
     });
   }
 
-  let disposable = vscode.commands.registerCommand('extension.runTests', function () {
+  let disposable = vscode.commands.registerCommand('codeclash.runTests', function () {
+    console.log('Command "codeclash.runTests" executed');
     if (!username) {
       vscode.window.showErrorMessage('Username is required to run tests.');
       return;
@@ -25,6 +30,9 @@ function activate(context: any) {
 
     // Run the test command
     exec('npm run test', (error: any, stdout: any, stderr: any) => {
+      console.log('Running tests...');
+      console.log('stdout:', stdout);
+      console.log('stderr:', stderr);
       if (error) {
         console.error(`exec error: ${error}`);
         return;
@@ -32,9 +40,10 @@ function activate(context: any) {
 
       // Parse the test results from stdout
       const testResults = parseTestResults(stdout, username);
+      console.log('Parsed test results:', testResults);
 
       // Send the results to the backend
-      axios.post('https://codeclashserver.onrender.com/test-results', {
+      axios.post('http://localhost:3000/test-results', {
         data: testResults,
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development', // Additional metadata
