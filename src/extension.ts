@@ -1,26 +1,16 @@
-import * as vscode from 'vscode';
-import axios from 'axios';
+  import * as vscode from 'vscode';
 
-export function activate(context: vscode.ExtensionContext) {
-  let disposable = vscode.workspace.onDidSaveTextDocument((document) => {
-    // Log to confirm the event is triggered
-    console.log('onDidSaveTextDocument event triggered');
+  export function activate(context: vscode.ExtensionContext) {
+    console.log('Extension activated');
 
-    // Send data to the server
-    const text = 'coucou toi';
-    axios.post('http://localhost:3000/update', {
-      data: { text: text }
-    }).then(response => {
-      // Log the response from the server
-      console.log('Server response:', response.data);
-    }).catch(error => {
-      console.error('Error sending data to server:', error);
+    let disposable = vscode.workspace.onDidSaveTextDocument((document) => {
+      console.log('onDidSaveTextDocument event triggered');
+      vscode.window.showInformationMessage(`File saved: ${document.fileName}`);
     });
 
-    vscode.window.showInformationMessage(`File saved: ${document.fileName}`);
-  });
+    context.subscriptions.push(disposable);
+  }
 
-  context.subscriptions.push(disposable);
-}
-
-export function deactivate() {}
+  export function deactivate() {
+    console.log('Extension deactivated');
+  }
