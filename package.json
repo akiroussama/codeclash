@@ -2,10 +2,10 @@
   "name": "codeclash",
   "displayName": "CodeClash",
   "description": "Multiplayer Coding Competition",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "oakir",
   "engines": {
-    "vscode": "^1.95.0"
+    "vscode": "*"
   },
   "categories": [
     "Other"
@@ -22,7 +22,7 @@
       }
     ]
   },
-"repository": {
+  "repository": {
     "type": "git",
     "url": "https://github.com/akiroussama/codeclash.git"
   },
