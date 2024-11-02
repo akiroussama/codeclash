@@ -15,7 +15,10 @@ function activate(context:any) {
       const testResults = parseTestResults(stdout);
 
       // Send the results to the backend
-      axios.post('https://codeclashserver.onrender.com/test-results', testResults)
+      axios.post('https://codeclashserver.onrender.com/test-results', {
+        data: testResults,
+        timestamp:new Date().toISOString()
+      })
         .then((response:any) => {
           vscode.window.showInformationMessage('Test results sent successfully!');
         })
@@ -25,7 +28,6 @@ function activate(context:any) {
         });
     });
   });
-
   context.subscriptions.push(disposable);
 }
 
