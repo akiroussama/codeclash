@@ -6,7 +6,7 @@ function activate(context: any) {
   // Retrieve stored username or prompt for it
   let username = context.globalState.get('username');
   if (!username) {
-    vscode.window.showInputBox({ prompt: 'Enter your username' }).then((input) => {
+    vscode.window.showInputBox({ prompt: 'Enter your username' }).then((input:any) => {
       if (input) {
         username = input;
         context.globalState.update('username', username);
