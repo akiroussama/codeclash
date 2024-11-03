@@ -394,7 +394,7 @@ function parseTestResults(output: string): TestResult {
     return results;
 }
 
-function sendTestStatusUpdate(testResults: TestResult) {
+async function sendTestStatusUpdate(testResults: TestResult) {
         const statusUpdate = {
             user: username,
             timestamp: new Date().toISOString(),
@@ -414,7 +414,6 @@ function sendTestStatusUpdate(testResults: TestResult) {
                 nodeVersion: process.version,
                 vscodeVersion: vscode.version,
                 platform: process.platform,
-                // Added missing fields to match metadata structure
                 osInfo: await getSystemInfo(),
                 workspace: {
                     name: vscode.workspace.workspaceFolders?.[0].name || '',

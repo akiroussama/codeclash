@@ -1,11 +1,11 @@
 {
-  "name": "CodeClash",
-  "displayName": "Test Monitor",
-  "description": "Monitor npm test results",
-  "version": "2.0.2",
+  "name": "clash-of-code",
+  "displayName": "ClashOfCode",
+  "description": "Competitive coding test monitor",
+  "version": "2.0.3",
   "publisher": "oakir",
   "engines": {
-    "vscode": "^1.95.0"
+    "vscode": "^1.89.0"
   },
   "categories": [
     "Testing"
@@ -58,7 +58,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/mocha": "^10.0.9",
-    "@types/vscode": "^1.95.0",
+    "@types/vscode": "^1.89.0",
     "ts-loader": "^9.5.1",
     "webpack-cli": "^5.1.4"
   }
