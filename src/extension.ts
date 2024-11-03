@@ -18,6 +18,10 @@ interface TestResult
     duration?: number;
   }>;
 }
+let projectInfo: any;
+let gitInfo: any;
+let testRunnerInfo: any;
+let username: string | undefined;
 
 interface TestRunMetadata {
   timestamp: string;
@@ -67,12 +71,43 @@ interface TestRunMetadata {
     exitCode: number;
   };
 }
-
+async function getUsername() {
+    try {
+      // Request a session from the GitHub authentication provider
+      const session = await vscode.authentication.getSession('github', ['read:user'], { createIfNone: true });
+  
+      if (session) {
+        // Access the username from the session account information
+        const username = session.account.label;
+        vscode.window.showInformationMessage(`Logged in as: ${username}`);
+        return username;
+      } else {
+        vscode.window.showErrorMessage('No session found');
+      }
+    } catch (error:any) {
+      vscode.window.showErrorMessage(`Error getting username: ${error.message}`);
+    }
+  }
 export async function activate(context: vscode.ExtensionContext) {
     console.log('Extension activated');
     let statusBarItem: vscode.StatusBarItem;
     let testOutputChannel: vscode.OutputChannel;
-
+    username = context.globalState.get('username') || '';
+    console.log('Retrieved username:', username);
+    let user = await getUsername();
+    console.log('User:', user);
+    if (!username && !user) {
+      vscode.window.showInputBox({ prompt: 'Enter your username' }).then((input: any) => {
+        if (input) {
+          username = input;
+          context.globalState.update('username', username);
+          console.log('Username updated:', username);
+        } else {
+          vscode.window.showErrorMessage('Username is required to use this extension.');
+          return;
+        }
+      });
+    }
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
     testOutputChannel = vscode.window.createOutputChannel('Test Monitor');
 
@@ -143,6 +178,40 @@ export async function activate(context: vscode.ExtensionContext) {
         return { name: testRunner, version, config };
     }
 
+    async function getUser(): Promise<string> {
+        // First try to get GitHub username
+        const user = await getUsername();
+        
+        if (user) {
+            return user;
+        }
+    
+        // If no GitHub user, prompt for manual input
+        try {
+            const input = await vscode.window.showInputBox({ 
+                prompt: 'Enter your username',
+                ignoreFocusOut: true, // Prevents dialog from closing when focus is lost
+                placeHolder: 'username',
+                validateInput: (value) => {
+                    return value && value.trim() ? null : 'Username cannot be empty';
+                }
+            });
+    
+            if (!input) {
+                throw new Error('Username is required');
+            }
+    
+            username = input.trim();
+            await context.globalState.update('username', username);
+            console.log('Username updated:', username);
+            return username;
+    
+        } catch (error) {
+            vscode.window.showErrorMessage('Username is required to use this extension.');
+            return 'anonymous';
+        }
+    }
+
     let disposable = vscode.commands.registerCommand('test-monitor.start', async () => {
         console.log('Command test-monitor.start triggered');
         const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -161,9 +230,17 @@ export async function activate(context: vscode.ExtensionContext) {
         const systemInfo = await getSystemInfo();
         console.log('System info:', systemInfo);
 
-        const gitInfo = await getGitInfo(workspacePath);
-        const projectInfo = await getProjectInfo(workspacePath);
-        const testRunnerInfo = await getTestRunnerInfo(workspacePath);
+        // Update global variables
+        gitInfo = await getGitInfo(workspacePath);
+        projectInfo = await getProjectInfo(workspacePath);
+        testRunnerInfo = await getTestRunnerInfo(workspacePath);
+        username = await getUser() || 'anonymous';
+        console.log('Global variables set:', {
+            gitInfo,
+            projectInfo,
+            testRunnerInfo,
+            username
+        });
 
         console.log('Starting test process');
         const child = exec('npm run test', {
@@ -240,7 +317,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             console.log('Sending test results');
             try {
-                await axios.post('https://codeclashclient.onrender.com/test-results', {
+                await axios.post('https://codeclashserver.onrender.com/test-results', {
                     testResults,
                     metadata,
                     rawOutput: {
@@ -318,16 +395,52 @@ function parseTestResults(output: string): TestResult {
 }
 
 function sendTestStatusUpdate(testResults: TestResult) {
-    const statusUpdate = {
-        user: 'oakri', // Replace with dynamic user info if available
-        timestamp: new Date().getTime().toString(),
-        testStatus: JSON.stringify({
-            passed: testResults.passed,
-            errors: testResults.failed
-        })
-    };
+        const statusUpdate = {
+            user: username,
+            timestamp: new Date().toISOString(),
+            testStatus: {
+                passed: testResults.passed,
+                failed: testResults.failed,
+                skipped: testResults.skipped,
+                duration: testResults.duration,
+                total: testResults.total,
+                testFiles: testResults.testFiles,
+                failureDetails: testResults.failureDetails
+            },
+            projectInfo: projectInfo,
+            gitInfo: gitInfo,
+            testRunnerInfo: testRunnerInfo,
+            environment: {
+                nodeVersion: process.version,
+                vscodeVersion: vscode.version,
+                platform: process.platform,
+                // Added missing fields to match metadata structure
+                osInfo: await getSystemInfo(),
+                workspace: {
+                    name: vscode.workspace.workspaceFolders?.[0].name || '',
+                    path: vscode.workspace.workspaceFolders?.[0].uri.fsPath || '',
+                    gitInfo
+                }
+            },
+            // Added execution info
+            execution: {
+                startTime: new Date().toISOString(), // Note: This will be the current time, not the actual start time
+                endTime: new Date().toISOString(),
+                duration: testResults.duration * 1000, // Convert seconds to milliseconds to match metadata
+                exitCode: 0 // Default to 0 since we don't have access to the actual exit code here
+            }
+        };
+        // ... rest of the function
+    debugger;
+    console.log('####################################');
+    console.log('#                                  #');
+    console.log('#        STATUS UPDATE             #');
+    console.log('#                                  #');
+    console.log('####################################');
+    console.log(statusUpdate);
+    console.log('####################################');
 
-    axios.post('https://codeclashclient.onrender.com/test-status', statusUpdate)
+    axios.post('https://codeclashserver.onrender.com/test-status', statusUpdate)
         .then(() => {
             console.log('Test status update sent successfully');
         })
