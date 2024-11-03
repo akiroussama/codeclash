@@ -356,38 +356,49 @@ function parseTestResults(output: string): TestResult {
     const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
     console.log('Clean test output:', cleanOutput);
 
-    // Parse test files and their status
-    const fileTestPattern = /([^\s]+\.(?:test|spec)\.[jt]sx?)\s*\((\d+)\s*tests?\s*\|\s*(\d+)\s*failed\)/g;
+    // Parse test files
+    const fileTestPattern = /✓\s+([^\s]+\.(?:test|spec)\.[jt]sx?)\s*\((\d+)\s*tests?\)/g;
     let fileMatch;
     while ((fileMatch = fileTestPattern.exec(cleanOutput)) !== null) {
         results.testFiles.push(fileMatch[1]);
+        // Add the number of tests from this file to the total passed
+        results.passed += parseInt(fileMatch[2]);
     }
 
     // Parse overall test results
-    const testSummaryPattern = /Tests\s*(\d+)\s*failed\s*\|\s*(\d+)\s*passed\s*\((\d+)\)/;
+    const testSummaryPattern = /Tests\s+(\d+)\s+passed\s*\((\d+)\)/;
     const summaryMatch = cleanOutput.match(testSummaryPattern);
     if (summaryMatch) {
-        results.failed = parseInt(summaryMatch[1]);
-        results.passed = parseInt(summaryMatch[2]);
-        results.total = parseInt(summaryMatch[3]);
+        results.passed = parseInt(summaryMatch[1]);
+        results.total = parseInt(summaryMatch[2]);
+        // Parse failed tests count
+        const failedTestPattern = /Tests\s+\d+\s+failed/;
+        const failedMatch = cleanOutput.match(failedTestPattern);
+        if (failedMatch) {
+            const failedNumberMatch = failedMatch[0].match(/\d+/);
+            if (failedNumberMatch) {
+                results.failed = parseInt(failedNumberMatch[0]);
+            }
+        }
     }
 
     // Parse duration
-    const durationPattern = /Duration\s*(\d+)ms/;
+    const durationPattern = /Duration\s+(\d+)ms/;
     const durationMatch = cleanOutput.match(durationPattern);
     if (durationMatch) {
         results.duration = parseInt(durationMatch[1]) / 1000; // Convert to seconds
     }
 
-    // Parse failure details
-    const failurePattern = /×\s*(.*?)\s*(\d+)ms\n\s*→\s*((?:[^×]|[\s\S])*?)(?=\n\s*(?:×|\n|Test Files|$))/g;
+    // Parse failure details if any
+    const failurePattern = /×\s*(.*?)\s*›\s*(.*?)\s*\n\s*(?:AssertionError:\s*)?(.*?)(?=\n\s*(?:×|\n|Test Files|$))/g;
     let failureMatch;
     while ((failureMatch = failurePattern.exec(cleanOutput)) !== null) {
         results.failureDetails.push({
             testName: failureMatch[1].trim(),
             error: failureMatch[3].trim(),
-            duration: parseInt(failureMatch[2])
+            duration: 0 // Vitest doesn't show individual test durations in failure messages
         });
+        results.failed++;
     }
 
     console.log('Parsed test results:', results);
@@ -395,6 +406,12 @@ function parseTestResults(output: string): TestResult {
 }
 
 async function sendTestStatusUpdate(testResults: TestResult) {
+debugger;
+        if (!testResults.total) {
+            console.log('No test results to send');
+            return;
+        }
+
         const statusUpdate = {
             user: username,
             timestamp: new Date().toISOString(),
@@ -438,7 +455,7 @@ async function sendTestStatusUpdate(testResults: TestResult) {
     console.log('####################################');
     console.log(statusUpdate);
     console.log('####################################');
-
+    debugger;
     axios.post('https://codeclashserver.onrender.com/test-status', statusUpdate)
         .then(() => {
             console.log('Test status update sent successfully');
