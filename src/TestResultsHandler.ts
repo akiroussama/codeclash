@@ -115,7 +115,7 @@ export class TestResultsHandler {
         const patterns = {
             vitest: /(\d+)\s+passed\s*\|\s*(\d+)\s+failed\s*\|\s*(\d+)\s+skipped/,
             jest: /Tests:\s+(\d+)\s+passed,\s*(\d+)\s+failed,\s*(\d+)\s+skipped/,
-            mocha: /(\d+)\s+passing\s*\n.*?(\d+)\s+failing/s
+            mocha: /(\d+)\s+passing[\s\S]*?(\d+)\s+failing/
         };
 
         // Try each pattern
