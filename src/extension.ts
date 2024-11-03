@@ -240,7 +240,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             console.log('Sending test results');
             try {
-                await axios.post('http://localhost:3000/test-results', {
+                await axios.post('https://codeclashclient.onrender.com/test-results', {
                     testResults,
                     metadata,
                     rawOutput: {
@@ -327,7 +327,7 @@ function sendTestStatusUpdate(testResults: TestResult) {
         })
     };
 
-    axios.post('http://localhost:3000/test-status', statusUpdate)
+    axios.post('https://codeclashclient.onrender.com/test-status', statusUpdate)
         .then(() => {
             console.log('Test status update sent successfully');
         })
