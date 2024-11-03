@@ -23,10 +23,13 @@ export class TestMonitorExtension {
     async initialize() {
         this.username = this.context.globalState.get('username') || '';
         console.log('Retrieved username:', this.username);
-        const user = await this.getGithubUsername();
-        console.log('User:', user);
+        // get the username from the github login
+        if(!this.username){
+            this.username = await this.getGithubUsername();
+            console.log('User:', this.username);
+        }
 
-        if (!this.username && !user) {
+        if (!this.username) {
             await this.promptForUsername();
         }
     }
@@ -48,20 +51,24 @@ export class TestMonitorExtension {
     }
 
     private async promptForUsername(): Promise<void> {
-        const input = await vscode.window.showInputBox({
-            prompt: 'Enter your username',
-            ignoreFocusOut: true,
-            placeHolder: 'username',
-            validateInput: (value) => value && value.trim() ? null : 'Username cannot be empty'
-        });
+        let input: string | undefined;
+        
+        while (!input) {
+            input = await vscode.window.showInputBox({
+                prompt: 'Enter your username',
+                ignoreFocusOut: true,
+                placeHolder: 'username',
+                validateInput: (value) => value && value.trim() ? null : 'Username cannot be empty'
+            });
 
-        if (input) {
-            this.username = input;
-            await this.context.globalState.update('username', this.username);
-            console.log('Username updated:', this.username);
-        } else {
-            vscode.window.showErrorMessage('Username is required to use this extension.');
+            if (!input) {
+                await vscode.window.showErrorMessage('Username is required to use this extension.');
+            }
         }
+
+        this.username = input;
+        await this.context.globalState.update('username', this.username);
+        console.log('Username updated:', this.username);
     }
 
     private async getGitInfo(workspacePath: string): Promise<any> {
