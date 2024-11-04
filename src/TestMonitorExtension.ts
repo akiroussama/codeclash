@@ -143,26 +143,40 @@ export class TestMonitorExtension {
 
         const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
 
-        // Parse test files and their status
-        const fileTestPattern = /√\s*([^\s]+\.(?:test|spec)\.[jt]sx?)\s*\((\d+)\s*tests?\)/g;
+        // Parse test files and their status for Vitest
+        const fileTestPattern = /([^\s]+\.(?:test|spec)\.[jt]sx?)\s*\((\d+)\s*tests?\s*\|\s*(\d+)\s*failed\)/g;
         let fileMatch;
         while ((fileMatch = fileTestPattern.exec(cleanOutput)) !== null) {
             results.testFiles.push(fileMatch[1]);
         }
 
-        // Parse overall test results
-        const testPattern = /Tests\s*(\d+)\s*passed\s*\((\d+)\)/;
-        const testMatch = cleanOutput.match(testPattern);
-        if (testMatch) {
-            results.passed = parseInt(testMatch[1]);
-            results.total = parseInt(testMatch[2]);
+        // Parse overall test results for Vitest
+        const vitestPattern = /Tests\s*(\d+)\s*failed\s*\|\s*(\d+)\s*passed\s*\((\d+)\)/;
+        const vitestMatch = cleanOutput.match(vitestPattern);
+        if (vitestMatch) {
+            results.failed = parseInt(vitestMatch[1]);
+            results.passed = parseInt(vitestMatch[2]);
+            results.total = parseInt(vitestMatch[3]);
         }
 
         // Parse duration
-        const durationPattern = /Time\s*(\d+(?:\.\d+)?)ms/;
+        const durationPattern = /Duration\s*(\d+(?:\.\d+)?)(m?s)/;
         const durationMatch = cleanOutput.match(durationPattern);
         if (durationMatch) {
-            results.duration = parseFloat(durationMatch[1]) / 1000; // Convert ms to seconds
+            const value = parseFloat(durationMatch[1]);
+            const unit = durationMatch[2];
+            results.duration = unit === 'ms' ? value / 1000 : value;
+        }
+
+        // Parse failure details
+        const failurePattern = /×\s*(.*?)\s*(\d+)ms\n\s*→\s*((?:[^×]|[\s\S])*?)(?=\n\s*(?:×|\n|Test Files|$))/g;
+        let failureMatch;
+        while ((failureMatch = failurePattern.exec(cleanOutput)) !== null) {
+            results.failureDetails.push({
+                testName: failureMatch[1].trim(),
+                error: failureMatch[3].trim(),
+                duration: parseInt(failureMatch[2])
+            });
         }
 
         console.log('Parsed test results:', results);
