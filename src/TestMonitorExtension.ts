@@ -29,15 +29,17 @@ export class TestMonitorExtension {
         this.outputChannel.appendLine('Initializing extension');
         this.username = this.context.globalState.get('username') || '';
         this.outputChannel.appendLine(`Retrieved username: ${this.username}`);
-        // get the username from the github login
-        if(!this.username){
+        
+        if (!this.username) {
             this.username = await this.getGithubUsername();
             this.outputChannel.appendLine(`User: ${this.username}`);
         }
 
-        if (!this.username) {
-            await this.promptForUsername();
-        }
+        // Set up status bar item
+        this.statusBarItem.text = "$(beaker) Run Tests";
+        this.statusBarItem.command = 'test-monitor.start';
+        this.statusBarItem.tooltip = 'Run Tests';
+        this.statusBarItem.show();
     }
 
     private async getGithubUsername(): Promise<string | undefined> {
@@ -344,36 +346,43 @@ export class TestMonitorExtension {
             return;
         }
 
-        this.isWatching = true;
-        this.outputChannel.appendLine('Starting watch mode');
-        this.statusBarItem.text = "$(eye) Test Watch Mode";
-        this.statusBarItem.show();
-
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
             vscode.window.showErrorMessage('No workspace folder found');
             return;
         }
 
-        // Create a file system watcher for test files
+        // Create a file system watcher for relevant files
         this.fileWatcher = vscode.workspace.createFileSystemWatcher(
-            new vscode.RelativePattern(workspaceFolders[0], '**/*.{test,spec}.{js,ts,jsx,tsx}')
+            '**/*.{js,jsx,ts,tsx}',  // Watch JavaScript and TypeScript files
+            false,  // Don't ignore creates
+            false,  // Don't ignore changes
+            false   // Don't ignore deletes
         );
 
-        // Watch for file changes
-        this.fileWatcher.onDidChange(async () => {
-            this.outputChannel.appendLine('Test file changed, running tests...');
+        // Listen to file save events
+        this.fileWatcher.onDidChange(async (uri) => {
+            // Wait a brief moment to ensure file is fully saved
+            await new Promise(resolve => setTimeout(resolve, 500));
+            this.outputChannel.appendLine(`File changed: ${uri.fsPath}`);
             await this.startTestMonitor();
         });
 
-        // Initial test run
-        await this.startTestMonitor();
+        this.isWatching = true;
+        this.statusBarItem.text = "$(eye) Test Watch Mode Active";
+        this.statusBarItem.show();
+        vscode.window.showInformationMessage('Test watch mode started');
     }
 
-    async stopWatchMode() {
-        this.isWatching = false;
+    stopWatchMode() {
+        if (!this.isWatching) {
+            return;
+        }
+    
         this.fileWatcher?.dispose();
-        this.statusBarItem.text = "$(beaker) Test Monitor";
-        this.outputChannel.appendLine('Watch mode stopped');
+        this.isWatching = false;
+        this.statusBarItem.text = "$(beaker) Run Tests";
+        this.statusBarItem.show();
+        vscode.window.showInformationMessage('Test watch mode stopped');
     }
 }
