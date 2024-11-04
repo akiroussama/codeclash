@@ -10,13 +10,21 @@ export async function activate(context: vscode.ExtensionContext) {
     await extension.initialize();
     outputChannel.appendLine('Extension initialized');
 
-    const disposable = vscode.commands.registerCommand('test-monitor.start', () => {
-        outputChannel.appendLine('Command test-monitor.start executed');
+    // Register commands
+    const startWatchCommand = vscode.commands.registerCommand('test-monitor.startWatch', () => {
+        extension.startWatchMode();
+    });
+
+    const stopWatchCommand = vscode.commands.registerCommand('test-monitor.stopWatch', () => {
+        extension.stopWatchMode();
+    });
+
+    const startTestCommand = vscode.commands.registerCommand('test-monitor.start', () => {
         extension.startTestMonitor();
     });
 
-    context.subscriptions.push(disposable);
-    outputChannel.appendLine('Command registered and added to subscriptions');
+    context.subscriptions.push(startWatchCommand, stopWatchCommand, startTestCommand);
+    outputChannel.appendLine('Commands registered');
 }
 
 export function deactivate() {

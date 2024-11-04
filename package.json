@@ -48,13 +48,25 @@
         "title": "Start Test Monitor",
         "category": "Test Monitor",
         "icon": "$(beaker)"
+      },
+      {
+        "command": "test-monitor.startWatch",
+        "title": "Start Test Watch Mode",
+        "category": "Test Monitor",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "test-monitor.stopWatch",
+        "title": "Stop Test Watch Mode",
+        "category": "Test Monitor",
+        "icon": "$(eye-closed)"
       }
     ],
     "keybindings": [
       {
-        "command": "test-monitor.start",
-        "key": "ctrl+alt+t",
-        "mac": "cmd+alt+t",
+        "command": "test-monitor.startWatch",
+        "key": "ctrl+alt+w",
+        "mac": "cmd+alt+w",
         "when": "editorTextFocus"
       }
     ],

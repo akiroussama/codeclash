@@ -14,6 +14,8 @@ export class TestMonitorExtension {
     private testOutputChannel: vscode.OutputChannel;
     private outputChannel: vscode.OutputChannel;
     private context: vscode.ExtensionContext;
+    private isWatching: boolean = false;
+    private fileWatcher: vscode.FileSystemWatcher | undefined;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -243,7 +245,6 @@ export class TestMonitorExtension {
     }
 
     async startTestMonitor() {
-        this.outputChannel.appendLine('Starting test monitor');
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
             vscode.window.showErrorMessage('No workspace folder found');
@@ -253,7 +254,10 @@ export class TestMonitorExtension {
         const workspacePath = workspaceFolders[0].uri.fsPath;
         const startTime = new Date();
         
-        this.statusBarItem.text = "$(sync~spin) Running tests...";
+        // Update status bar to show running state
+        this.statusBarItem.text = this.isWatching ? 
+            "$(sync~spin) Running tests (Watch Mode)..." :
+            "$(sync~spin) Running tests...";
         this.statusBarItem.show();
 
         // Update project information
@@ -270,7 +274,7 @@ export class TestMonitorExtension {
             this.outputChannel.appendLine('Received stdout data');
             output += data;
             this.testOutputChannel.append(data);
-            const testResults = this.parseTestResults(output);
+            const testResults = this.parseTestResults(data);
             this.sendTestStatusUpdate(testResults, startTime);
         });
 
@@ -333,5 +337,43 @@ export class TestMonitorExtension {
             this.testOutputChannel.show();
             this.outputChannel.appendLine('Sending test results to API');
         });
+    }
+
+    async startWatchMode() {
+        if (this.isWatching) {
+            return;
+        }
+
+        this.isWatching = true;
+        this.outputChannel.appendLine('Starting watch mode');
+        this.statusBarItem.text = "$(eye) Test Watch Mode";
+        this.statusBarItem.show();
+
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders) {
+            vscode.window.showErrorMessage('No workspace folder found');
+            return;
+        }
+
+        // Create a file system watcher for test files
+        this.fileWatcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(workspaceFolders[0], '**/*.{test,spec}.{js,ts,jsx,tsx}')
+        );
+
+        // Watch for file changes
+        this.fileWatcher.onDidChange(async () => {
+            this.outputChannel.appendLine('Test file changed, running tests...');
+            await this.startTestMonitor();
+        });
+
+        // Initial test run
+        await this.startTestMonitor();
+    }
+
+    async stopWatchMode() {
+        this.isWatching = false;
+        this.fileWatcher?.dispose();
+        this.statusBarItem.text = "$(beaker) Test Monitor";
+        this.outputChannel.appendLine('Watch mode stopped');
     }
 }
