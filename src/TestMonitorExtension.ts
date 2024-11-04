@@ -180,7 +180,6 @@ export class TestMonitorExtension {
             const unit = durationMatch[2];
             results.duration = unit === 'ms' ? value / 1000 : value;
         }
-
         // Parse failure details
         const failurePattern = /×\s*(.*?)\s*(\d+)ms\n\s*→\s*((?:[^×]|[\s\S])*?)(?=\n\s*(?:×|\n|Test Files|$))/g;
         let failureMatch;
