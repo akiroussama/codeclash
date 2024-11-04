@@ -141,7 +141,45 @@ export class TestMonitorExtension {
 
         return { name: testRunner, version, config };
     }
-
+    private parseTestResultsV2(output: string): TestResult {
+        this.outputChannel.appendLine('Parsing test results');
+        const results: TestResult = {
+            passed: 0,
+            failed: 0,
+            skipped: 0,
+            duration: 0,
+            total: 0,
+            testFiles: [],
+            failureDetails: []
+        };
+    
+        // Clean ANSI escape codes from the output
+        const cleanOutput = output.replace(/\x1b\[\d+m/g, '');
+    
+        // Parse test files
+        const fileTestPattern = /✓\s+([\w./]+\.(?:test|spec)\.[jt]sx?)\s*\((\d+)\s*tests?\)/;
+        const fileMatch = cleanOutput.match(fileTestPattern);
+        if (fileMatch) {
+            results.testFiles.push(fileMatch[1]);
+        }
+    
+        // Parse total passed tests
+        const passedPattern = /Tests\s+(\d+)\s+passed\s*\((\d+)\)/;
+        const passedMatch = cleanOutput.match(passedPattern);
+        if (passedMatch) {
+            results.passed = parseInt(passedMatch[1]);
+            results.total = parseInt(passedMatch[2]);
+        }
+    
+        // Parse duration
+        const durationPattern = /Duration\s+(\d+)ms/;
+        const durationMatch = cleanOutput.match(durationPattern);
+        if (durationMatch) {
+            results.duration = parseInt(durationMatch[1]) / 1000; // Convert to seconds
+        }
+    
+        return results;
+    }
     private parseTestResults(output: string): TestResult {
         this.outputChannel.appendLine('Parsing test results');
         const results: TestResult = {
@@ -199,6 +237,7 @@ export class TestMonitorExtension {
         this.outputChannel.appendLine('Preparing to send test status update');
         this.outputChannel.appendLine(`Test results: ${JSON.stringify(testResults)}`);
         if (!testResults.total) {
+
             console.log('No test results to send');
             return;
         }
@@ -275,7 +314,10 @@ export class TestMonitorExtension {
             this.outputChannel.appendLine('Received stdout data');
             output += data;
             this.testOutputChannel.append(data);
-            const testResults = this.parseTestResults(data);
+            let testResults = this.parseTestResults(data);
+            if (!testResults.total) {
+                testResults = this.parseTestResultsV2(data);
+            }
             this.sendTestStatusUpdate(testResults, startTime);
         });
 
