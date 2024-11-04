@@ -2,7 +2,7 @@
   "name": "clash-of-code",
   "displayName": "ClashOfCode",
   "description": "Competitive coding test monitor",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "publisher": "oakir",
   "engines": {
     "vscode": "^1.89.0"
@@ -16,9 +16,7 @@
   ],
   "changelog": {
       "4.0.0": [
-        "Added test monitoring capabilities",
-        "Real time test monitoring",
-        "Test results in the status bar"
+        "first stable version, will focus on testing with real poc project"
       ]
   },
   "repository": {
