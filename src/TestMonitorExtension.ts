@@ -292,14 +292,8 @@ export class TestMonitorExtension {
             const duration = endTime.getTime() - startTime.getTime();
             const testResults = this.parseTestResults(output);
 
-            // Update status bar
-            if (code === 0) {
-                this.statusBarItem.text = `$(check) Tests: ${testResults.passed} passed`;
-                this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBar.background');
-            } else {
-                this.statusBarItem.text = `$(error) Tests: ${testResults.failed} failed, ${testResults.passed} passed`;
-                this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-            }
+            // Update status bar with results
+            this.updateStatusBar(testResults);
 
             const metadata: TestRunMetadata = {
                 timestamp: new Date().toISOString(),
@@ -384,5 +378,26 @@ export class TestMonitorExtension {
         this.statusBarItem.text = "$(beaker) Run Tests";
         this.statusBarItem.show();
         vscode.window.showInformationMessage('Test watch mode stopped');
+    }
+
+    private updateStatusBar(testResults: TestResult) {
+        if (!testResults.total) {
+            this.statusBarItem.text = "$(beaker) No tests run";
+            return;
+        }
+
+        const passRate = Math.round((testResults.passed / testResults.total) * 100);
+        
+        if (testResults.failed > 0) {
+            this.statusBarItem.text = `$(error) Tests: ${testResults.failed} failed, ${testResults.passed} passed (${passRate}%)`;
+            this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+            this.statusBarItem.tooltip = `Failed: ${testResults.failed}\nPassed: ${testResults.passed}\nSkipped: ${testResults.skipped}\nDuration: ${testResults.duration}s`;
+        } else {
+            this.statusBarItem.text = `$(check) Tests: ${testResults.passed} passed (${passRate}%)`;
+            this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.background');
+            this.statusBarItem.tooltip = `All tests passed!\nTotal: ${testResults.total}\nDuration: ${testResults.duration}s`;
+        }
+
+        this.statusBarItem.show();
     }
 }
