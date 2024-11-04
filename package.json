@@ -2,7 +2,7 @@
   "name": "clash-of-code",
   "displayName": "ClashOfCode",
   "description": "Competitive coding test monitor",
-  "version": "3.2.2",
+  "version": "3.3.0",
   "publisher": "oakir",
   "engines": {
     "vscode": "^1.89.0"
@@ -14,6 +14,15 @@
     "onCommand:test-monitor.start",
     "workspaceContains:package.json"
   ],
+  "changelog": {
+    "3.3.0": [
+      "Added test monitoring capabilities",
+      "Integrated with VS Code test runner",
+      "Added status bar indicators for test results",
+      "Added support for sending test metrics",
+      "Improved error handling and logging"
+    ]
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/akiroussama/codeclash.git"

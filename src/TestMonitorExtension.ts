@@ -12,21 +12,25 @@ export class TestMonitorExtension {
     private username: string | undefined;
     private statusBarItem: vscode.StatusBarItem;
     private testOutputChannel: vscode.OutputChannel;
+    private outputChannel: vscode.OutputChannel;
     private context: vscode.ExtensionContext;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
         this.testOutputChannel = vscode.window.createOutputChannel('Test Monitor');
+        this.outputChannel = vscode.window.createOutputChannel('Test Monitor Debug');
+        this.outputChannel.appendLine('TestMonitorExtension initialized');
     }
 
     async initialize() {
+        this.outputChannel.appendLine('Initializing extension');
         this.username = this.context.globalState.get('username') || '';
-        console.log('Retrieved username:', this.username);
+        this.outputChannel.appendLine(`Retrieved username: ${this.username}`);
         // get the username from the github login
         if(!this.username){
             this.username = await this.getGithubUsername();
-            console.log('User:', this.username);
+            this.outputChannel.appendLine(`User: ${this.username}`);
         }
 
         if (!this.username) {
@@ -35,6 +39,7 @@ export class TestMonitorExtension {
     }
 
     private async getGithubUsername(): Promise<string | undefined> {
+        this.outputChannel.appendLine('Attempting to get GitHub username');
         try {
             const session = await vscode.authentication.getSession('github', ['read:user'], { createIfNone: true });
             if (session) {
@@ -51,6 +56,7 @@ export class TestMonitorExtension {
     }
 
     private async promptForUsername(): Promise<void> {
+        this.outputChannel.appendLine('Prompting for username');
         let input: string | undefined;
         
         while (!input) {
@@ -68,11 +74,11 @@ export class TestMonitorExtension {
 
         this.username = input;
         await this.context.globalState.update('username', this.username);
-        console.log('Username updated:', this.username);
+        this.outputChannel.appendLine(`Username updated: ${this.username}`);
     }
 
     private async getGitInfo(workspacePath: string): Promise<any> {
-        console.log('Fetching Git info');
+        this.outputChannel.appendLine('Fetching Git info');
         try {
             const execPromise = (command: string) => new Promise((resolve) => {
                 exec(command, { cwd: workspacePath }, (err, stdout) => {
@@ -94,6 +100,7 @@ export class TestMonitorExtension {
     }
 
     private async getProjectInfo(workspacePath: string): Promise<any> {
+        this.outputChannel.appendLine('Fetching project info');
         try {
             const packageJson = await readPackageJson(workspacePath);
             return {
@@ -109,6 +116,7 @@ export class TestMonitorExtension {
     }
 
     private async getTestRunnerInfo(workspacePath: string): Promise<any> {
+        this.outputChannel.appendLine('Fetching test runner info');
         const packageJson = await readPackageJson(workspacePath);
         let testRunner = 'unknown';
         let version = '';
@@ -131,6 +139,7 @@ export class TestMonitorExtension {
     }
 
     private parseTestResults(output: string): TestResult {
+        this.outputChannel.appendLine('Parsing test results');
         const results: TestResult = {
             passed: 0,
             failed: 0,
@@ -184,6 +193,8 @@ export class TestMonitorExtension {
     }
 
     private async sendTestStatusUpdate(testResults: TestResult, startTime: Date) {
+        this.outputChannel.appendLine('Preparing to send test status update');
+        this.outputChannel.appendLine(`Test results: ${JSON.stringify(testResults)}`);
         if (!testResults.total) {
             console.log('No test results to send');
             return;
@@ -232,6 +243,7 @@ export class TestMonitorExtension {
     }
 
     async startTestMonitor() {
+        this.outputChannel.appendLine('Starting test monitor');
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
             vscode.window.showErrorMessage('No workspace folder found');
@@ -255,6 +267,7 @@ export class TestMonitorExtension {
         const child = exec('npm run test', { cwd: workspacePath });
 
         child.stdout?.on('data', (data) => {
+            this.outputChannel.appendLine('Received stdout data');
             output += data;
             this.testOutputChannel.append(data);
             const testResults = this.parseTestResults(output);
@@ -262,11 +275,13 @@ export class TestMonitorExtension {
         });
 
         child.stderr?.on('data', (data) => {
+            this.outputChannel.appendLine('Received stderr data');
             errorOutput += data;
             this.testOutputChannel.append(data);
         });
 
         child.on('close', async (code) => {
+            this.outputChannel.appendLine(`Test process closed with code: ${code}`);
             const endTime = new Date();
             const duration = endTime.getTime() - startTime.getTime();
             const testResults = this.parseTestResults(output);
@@ -316,6 +331,7 @@ export class TestMonitorExtension {
             }
 
             this.testOutputChannel.show();
+            this.outputChannel.appendLine('Sending test results to API');
         });
     }
 }
