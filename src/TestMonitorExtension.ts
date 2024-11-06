@@ -383,13 +383,18 @@ private parseTestResultsV3(output: string): TestResult {
             this.outputChannel.appendLine('Received stdout data');
             output += data;
             this.testOutputChannel.append(data);
+            
             let testResults = this.parseTestResults(data);
+            this.outputChannel.appendLine(' V1 ');
             if (!testResults.total) {
                 testResults = this.parseTestResultsV2(data);
+                this.outputChannel.appendLine(' V2 ');
                 if (!testResults.total) {
                     testResults = this.parseTestResultsV3(data);
+                    this.outputChannel.appendLine(' V3 ');
                 }
             }
+            this.outputChannel.appendLine(' data after parsing : '+testResults);
             this.sendTestStatusUpdate(testResults, startTime);
         });
 
@@ -432,6 +437,7 @@ private parseTestResultsV3(output: string): TestResult {
             };
 
             try {
+                this.outputChannel.appendLine(' sending data to server : '+testResults);
                 await axios.post('https://codeclashserver.onrender.com/test-results', {
                     testResults,
                     metadata,
@@ -441,6 +447,7 @@ private parseTestResultsV3(output: string): TestResult {
             } catch (error) {
                 vscode.window.showErrorMessage('Failed to send test results.');
                 console.error('Error sending test results:', error);
+                this.outputChannel.appendLine('Error sending test results:'+ error);
             }
 
             this.testOutputChannel.show();
