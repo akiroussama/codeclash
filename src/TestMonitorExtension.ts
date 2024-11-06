@@ -16,34 +16,52 @@ export class TestMonitorExtension {
     private context: vscode.ExtensionContext;
     private isWatching: boolean = false;
     private fileWatcher: vscode.FileSystemWatcher | undefined;
+    private maxOutputLines: number;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-        this.testOutputChannel = vscode.window.createOutputChannel('Clash of Code');
-        this.outputChannel = vscode.window.createOutputChannel('Clash of Code Debug');
+        this.testOutputChannel = vscode.window.createOutputChannel('Test Monitor');
+        this.outputChannel = vscode.window.createOutputChannel('Test Monitor Debug');
         this.outputChannel.appendLine('TestMonitorExtension initialized');
+        this.maxOutputLines = 1000;
+        this.outputChannel.appendLine(`TestMonitorExtension initialized with maxOutputLines: ${this.maxOutputLines}`);
+    }
+
+    private appendLineWithLimit(message: string) {
+        const content = this.outputChannel.toString();
+        const lines = content.split('\n');
+        this.outputChannel.appendLine(`Current log lines: ${lines.length}, max: ${this.maxOutputLines}`);
+        
+        if (lines.length >= this.maxOutputLines) {
+            this.outputChannel.clear();
+            this.outputChannel.appendLine('--- Previous output truncated ---');
+            const keepLines = lines.slice(Math.floor(this.maxOutputLines * 0.8));
+            keepLines.forEach(line => this.outputChannel.appendLine(line));
+        }
+        
+        this.outputChannel.appendLine(message);
     }
 
     async initialize() {
-        this.outputChannel.appendLine('Initializing extension');
+        this.appendLineWithLimit(`Initializing extension with context: ${JSON.stringify(this.context.extension.id)}`);
         this.username = this.context.globalState.get('username') || '';
-        this.outputChannel.appendLine(`Retrieved username: ${this.username}`);
+        this.appendLineWithLimit(`Retrieved username: ${this.username}`);
         
         if (!this.username) {
             this.username = await this.getGithubUsername();
-            this.outputChannel.appendLine(`User: ${this.username}`);
+            this.appendLineWithLimit(`User: ${this.username}`);
         }
 
         // Set up status bar item
         this.statusBarItem.text = "$(beaker) Run Tests";
-        this.statusBarItem.command = 'efrei.start';
-        this.statusBarItem.tooltip = 'Start the Clash Of Code';
+        this.statusBarItem.command = 'test-monitor.start';
+        this.statusBarItem.tooltip = 'Run Tests';
         this.statusBarItem.show();
     }
 
     private async getGithubUsername(): Promise<string | undefined> {
-        this.outputChannel.appendLine('Attempting to get GitHub username');
+        this.outputChannel.appendLine(`Attempting to get GitHub username`);
         try {
             const session = await vscode.authentication.getSession('github', ['read:user'], { createIfNone: true });
             if (session) {
@@ -60,7 +78,7 @@ export class TestMonitorExtension {
     }
 
     private async promptForUsername(): Promise<void> {
-        this.outputChannel.appendLine('Prompting for username');
+        this.outputChannel.appendLine(`Prompting for username`);
         let input: string | undefined;
         
         while (!input) {
@@ -82,7 +100,7 @@ export class TestMonitorExtension {
     }
 
     private async getGitInfo(workspacePath: string): Promise<any> {
-        this.outputChannel.appendLine('Fetching Git info');
+        this.outputChannel.appendLine(`Fetching Git info from workspace: ${workspacePath}`);
         try {
             const execPromise = (command: string) => new Promise((resolve) => {
                 exec(command, { cwd: workspacePath }, (err, stdout) => {
@@ -96,17 +114,21 @@ export class TestMonitorExtension {
                 execPromise('git remote get-url origin')
             ]);
 
+            this.outputChannel.appendLine(`Git info retrieved - Branch: ${branch}, Commit: ${commit}, Remote: ${remote}`);
             return { branch, commit, remote };
         } catch (error) {
-            console.error('Error fetching Git info:', error);
+            this.outputChannel.appendLine(`Error fetching Git info: ${error}`);
             return undefined;
         }
     }
 
     private async getProjectInfo(workspacePath: string): Promise<any> {
-        this.outputChannel.appendLine('Fetching project info');
+        this.outputChannel.appendLine(`Fetching project info from workspace: ${workspacePath}`);
         try {
             const packageJson = await readPackageJson(workspacePath);
+            this.outputChannel.appendLine(`Project info found - Name: ${packageJson.name}, Version: ${packageJson.version}`);
+            this.outputChannel.appendLine(`Dependencies count: ${Object.keys(packageJson.dependencies || {}).length}`);
+            this.outputChannel.appendLine(`Available scripts: ${Object.keys(packageJson.scripts || {}).join(', ')}`);
             return {
                 name: packageJson.name,
                 version: packageJson.version,
@@ -114,14 +136,16 @@ export class TestMonitorExtension {
                 scripts: packageJson.scripts
             };
         } catch (error) {
-            console.error('Error fetching project info:', error);
+            this.outputChannel.appendLine(`Error fetching project info: ${error}`);
             return undefined;
         }
     }
 
     private async getTestRunnerInfo(workspacePath: string): Promise<any> {
-        this.outputChannel.appendLine('Fetching test runner info');
+        this.outputChannel.appendLine(`Fetching test runner info from workspace: ${workspacePath}`);
         const packageJson = await readPackageJson(workspacePath);
+        this.outputChannel.appendLine(`Package.json dependencies: ${JSON.stringify(packageJson.dependencies)}`);
+        this.outputChannel.appendLine(`Package.json devDependencies: ${JSON.stringify(packageJson.devDependencies)}`);
         let testRunner = 'unknown';
         let version = '';
         let config = {};
@@ -141,77 +165,84 @@ export class TestMonitorExtension {
 
         return { name: testRunner, version, config };
     }
-private parseTestResultsV3(output: string): TestResult {
-    this.outputChannel.appendLine('Parsing test results');
-    const results: TestResult = {
-        passed: 0,
-        failed: 0,
-        skipped: 0,
-        duration: 0,
-        total: 0,
-        testFiles: [],
-        failureDetails: []
-    };
 
-    // Remove ANSI escape codes
-    const cleanOutput = output.replace(/\x1b$[0-9;]*m/g, '');
+    private parseTestResultsV3(output: string): TestResult {
+        this.outputChannel.appendLine(`Parsing test results V3`);
+        this.outputChannel.appendLine(`Raw output length: ${output.length} characters`);
+        
+        const results: TestResult = {
+            passed: 0,
+            failed: 0,
+            skipped: 0,
+            duration: 0,
+            total: 0,
+            testFiles: [],
+            failureDetails: []
+        };
 
-    // Parse test files and their status for Vitest
-    const fileTestPattern = /([^\s]+\.(?:test|spec)\.[jt]sx?)\s*$\s*(\d+)\s*tests?\s*$/g;
-    let fileMatch;
-    while ((fileMatch = fileTestPattern.exec(cleanOutput)) !== null) {
-        results.testFiles.push(fileMatch[1]);
+        // Remove ANSI escape codes
+        const cleanOutput = output.replace(/\x1b$[0-9;]*m/g, '');
+        this.outputChannel.appendLine(`Cleaned output length: ${cleanOutput.length} characters`);
+
+        // Parse test files and their status for Vitest
+        const fileTestPattern = /([^\s]+\.(?:test|spec)\.[jt]sx?)\s*$\s*(\d+)\s*tests?\s*$/g;
+        let fileMatch;
+        while ((fileMatch = fileTestPattern.exec(cleanOutput)) !== null) {
+            results.testFiles.push(fileMatch[1]);
+        }
+
+        // Parse overall test results for Vitest
+        const failedPattern = /(\d+)\s*failed/;
+        const passedPattern = /(\d+)\s*passed/;
+        const totalPattern = /Tests\s*(\d+)\s*failed\s*\|\s*(\d+)\s*passed\s*$(\d+)$/;
+
+        const failedMatch = cleanOutput.match(failedPattern);
+        const passedMatch = cleanOutput.match(passedPattern);
+        const totalMatch = cleanOutput.match(totalPattern);
+
+        if (failedMatch) {
+            results.failed = parseInt(failedMatch[1]);
+        }
+
+        if (passedMatch) {
+            results.passed = parseInt(passedMatch[1]);
+        }
+
+        if (totalMatch) {
+            results.total = parseInt(totalMatch[3]);
+        } else {
+            // If total is not directly available, calculate it
+            results.total = results.failed + results.passed;
+        }
+
+        // Parse duration
+        const durationPattern = /Duration\s*(\d+(?:\.\d+)?)(m?s)/;
+        const durationMatch = cleanOutput.match(durationPattern);
+        if (durationMatch) {
+            const value = parseFloat(durationMatch[1]);
+            const unit = durationMatch[2];
+            results.duration = unit === 'ms' ? value / 1000 : value;
+        }
+
+        // Parse failure details
+        const failurePattern = /×\s*(.*?)\s*(\d+)ms\n\s*→\s*((?:[^×]|[\s\S])*?)(?=\n\s*(?:×|\n|Test Files|$))/g;
+        let failureMatch;
+        while ((failureMatch = failurePattern.exec(cleanOutput)) !== null) {
+            results.failureDetails.push({
+                testName: failureMatch[1].trim(),
+                error: failureMatch[3].trim(),
+                duration: parseInt(failureMatch[2])
+            });
+        }
+
+        this.outputChannel.appendLine(`Parsed results V3: ${JSON.stringify(results, null, 2)}`);
+        this.outputChannel.appendLine(`Test files found: ${results.testFiles.length}`);
+        this.outputChannel.appendLine(`Failure details found: ${results.failureDetails.length}`);
+        return results;
     }
 
-    // Parse overall test results for Vitest
-    const failedPattern = /(\d+)\s*failed/;
-    const passedPattern = /(\d+)\s*passed/;
-    const totalPattern = /Tests\s*(\d+)\s*failed\s*\|\s*(\d+)\s*passed\s*$(\d+)$/;
-
-    const failedMatch = cleanOutput.match(failedPattern);
-    const passedMatch = cleanOutput.match(passedPattern);
-    const totalMatch = cleanOutput.match(totalPattern);
-
-    if (failedMatch) {
-        results.failed = parseInt(failedMatch[1]);
-    }
-
-    if (passedMatch) {
-        results.passed = parseInt(passedMatch[1]);
-    }
-
-    if (totalMatch) {
-        results.total = parseInt(totalMatch[3]);
-    } else {
-        // If total is not directly available, calculate it
-        results.total = results.failed + results.passed;
-    }
-
-    // Parse duration
-    const durationPattern = /Duration\s*(\d+(?:\.\d+)?)(m?s)/;
-    const durationMatch = cleanOutput.match(durationPattern);
-    if (durationMatch) {
-        const value = parseFloat(durationMatch[1]);
-        const unit = durationMatch[2];
-        results.duration = unit === 'ms' ? value / 1000 : value;
-    }
-
-    // Parse failure details
-    const failurePattern = /×\s*(.*?)\s*(\d+)ms\n\s*→\s*((?:[^×]|[\s\S])*?)(?=\n\s*(?:×|\n|Test Files|$))/g;
-    let failureMatch;
-    while ((failureMatch = failurePattern.exec(cleanOutput)) !== null) {
-        results.failureDetails.push({
-            testName: failureMatch[1].trim(),
-            error: failureMatch[3].trim(),
-            duration: parseInt(failureMatch[2])
-        });
-    }
-
-    console.log('Parsed test results:', results);
-    return results;
-}
     private parseTestResultsV2(output: string): TestResult {
-        this.outputChannel.appendLine('Parsing test results');
+        this.outputChannel.appendLine(`Parsing test results`);
         const results: TestResult = {
             passed: 0,
             failed: 0,
@@ -250,7 +281,7 @@ private parseTestResultsV3(output: string): TestResult {
         return results;
     }
     private parseTestResults(output: string): TestResult {
-        this.outputChannel.appendLine('Parsing test results');
+        this.outputChannel.appendLine(`Parsing test results`);
         const results: TestResult = {
             passed: 0,
             failed: 0,
@@ -303,11 +334,14 @@ private parseTestResultsV3(output: string): TestResult {
     }
 
     private async sendTestStatusUpdate(testResults: TestResult, startTime: Date) {
-        this.outputChannel.appendLine('Preparing to send test status update');
-        this.outputChannel.appendLine(`Test results: ${JSON.stringify(testResults)}`);
+        this.outputChannel.appendLine(`Preparing to send test status update at ${new Date().toISOString()}`);
+        this.outputChannel.appendLine(`Test results: ${JSON.stringify(testResults, null, 2)}`);
+        this.outputChannel.appendLine(`Project info: ${JSON.stringify(this.projectInfo, null, 2)}`);
+        this.outputChannel.appendLine(`Git info: ${JSON.stringify(this.gitInfo, null, 2)}`);
+        this.outputChannel.appendLine(`Test runner info: ${JSON.stringify(this.testRunnerInfo, null, 2)}`);
+        
         if (!testResults.total) {
-
-            console.log('No test results to send');
+            this.outputChannel.appendLine(`No test results to send - Skipping update`);
             return;
         }
 
@@ -355,14 +389,20 @@ private parseTestResultsV3(output: string): TestResult {
 
     async startTestMonitor() {
         const workspaceFolders = vscode.workspace.workspaceFolders;
+        this.outputChannel.appendLine(`Starting test monitor at ${new Date().toISOString()}`);
+        this.outputChannel.appendLine(`Workspace folders: ${JSON.stringify(workspaceFolders?.map(f => f.uri.fsPath))}`);
+        
         if (!workspaceFolders) {
+            this.outputChannel.appendLine(`No workspace folders found - Aborting`);
             vscode.window.showErrorMessage('No workspace folder found');
             return;
         }
 
         const workspacePath = workspaceFolders[0].uri.fsPath;
         const startTime = new Date();
-        
+        this.outputChannel.appendLine(`Using workspace path: ${workspacePath}`);
+        this.outputChannel.appendLine(`Start time: ${startTime.toISOString()}`);
+
         // Update status bar to show running state
         this.statusBarItem.text = this.isWatching ? 
             "$(sync~spin) Running tests (Watch Mode)..." :
@@ -380,31 +420,38 @@ private parseTestResultsV3(output: string): TestResult {
         const child = exec('npm run test', { cwd: workspacePath });
 
         child.stdout?.on('data', (data) => {
-            this.outputChannel.appendLine('Received stdout data');
+            this.outputChannel.appendLine(`Received stdout data at ${new Date().toISOString()}`);
+            this.outputChannel.appendLine(`Stdout chunk size: ${data.length} characters`);
             output += data;
+            this.outputChannel.appendLine(`Total output size: ${output.length} characters`);
             this.testOutputChannel.append(data);
             
             let testResults = this.parseTestResults(data);
-            this.outputChannel.appendLine(' V1 ');
+            this.outputChannel.appendLine(` V1 `);
             if (!testResults.total) {
                 testResults = this.parseTestResultsV2(data);
-                this.outputChannel.appendLine(' V2 ');
+                this.outputChannel.appendLine(` V2 `);
                 if (!testResults.total) {
                     testResults = this.parseTestResultsV3(data);
-                    this.outputChannel.appendLine(' V3 ');
+                    this.outputChannel.appendLine(` V3 `);
                 }
             }
-            this.outputChannel.appendLine(' data after parsing : '+testResults);
+            this.outputChannel.appendLine(` data after parsing : ${testResults}`);
             this.sendTestStatusUpdate(testResults, startTime);
         });
 
         child.stderr?.on('data', (data) => {
-            this.outputChannel.appendLine('Received stderr data');
+            this.outputChannel.appendLine(`Received stderr data at ${new Date().toISOString()}`);
+            this.outputChannel.appendLine(`Stderr data: ${data}`);
             errorOutput += data;
             this.testOutputChannel.append(data);
         });
 
         child.on('close', async (code) => {
+            this.outputChannel.appendLine(`Test process closed at ${new Date().toISOString()}`);
+            this.outputChannel.appendLine(`Exit code: ${code}`);
+            this.outputChannel.appendLine(`Total stdout size: ${output.length} characters`);
+            this.outputChannel.appendLine(`Total stderr size: ${errorOutput.length} characters`);
             this.outputChannel.appendLine(`Test process closed with code: ${code}`);
             const endTime = new Date();
             const duration = endTime.getTime() - startTime.getTime();
@@ -437,7 +484,7 @@ private parseTestResultsV3(output: string): TestResult {
             };
 
             try {
-                this.outputChannel.appendLine(' sending data to server : '+testResults);
+                this.outputChannel.appendLine(` sending data to server : ${testResults}`);
                 await axios.post('https://codeclashserver.onrender.com/test-results', {
                     testResults,
                     metadata,
@@ -447,11 +494,11 @@ private parseTestResultsV3(output: string): TestResult {
             } catch (error) {
                 vscode.window.showErrorMessage('Failed to send test results.');
                 console.error('Error sending test results:', error);
-                this.outputChannel.appendLine('Error sending test results:'+ error);
+                this.outputChannel.appendLine(`Error sending test results: ${error}`);
             }
 
             this.testOutputChannel.show();
-            this.outputChannel.appendLine('Sending test results to API');
+            this.outputChannel.appendLine(`Sending test results to API`);
         });
     }
 
@@ -501,12 +548,15 @@ private parseTestResultsV3(output: string): TestResult {
     }
 
     private updateStatusBar(testResults: TestResult) {
+        this.outputChannel.appendLine(`Updating status bar with results: ${JSON.stringify(testResults, null, 2)}`);
         if (!testResults.total) {
+            this.outputChannel.appendLine(`No test results - Setting default status bar text`);
             this.statusBarItem.text = "$(beaker) No tests run";
             return;
         }
 
         const passRate = Math.round((testResults.passed / testResults.total) * 100);
+        this.outputChannel.appendLine(`Pass rate calculated: ${passRate}%`);
         
         if (testResults.failed > 0) {
             this.statusBarItem.text = `$(error) Tests: ${testResults.failed} failed, ${testResults.passed} passed (${passRate}%)`;
