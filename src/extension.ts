@@ -4,7 +4,7 @@ import { TestMonitorExtension } from './TestMonitorExtension';
 let extension: TestMonitorExtension | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
-    const outputChannel = vscode.window.createOutputChannel('Test Monitor');
+    const outputChannel = vscode.window.createOutputChannel('Clash of code');
     outputChannel.appendLine('Extension activated');
     console.log('Extension activated');
     
@@ -13,17 +13,17 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('Extension initialized');
 
     // Register commands
-    const startWatchCommand = vscode.commands.registerCommand('test-monitor.startWatch', () => {
+    const startWatchCommand = vscode.commands.registerCommand('efrei.startWatch', () => {
         if (!extension) return;
         extension.startWatchMode();
     });
 
-    const stopWatchCommand = vscode.commands.registerCommand('test-monitor.stopWatch', () => {
+    const stopWatchCommand = vscode.commands.registerCommand('efrei.stopWatch', () => {
         if (!extension) return;
         extension.stopWatchMode();
     });
 
-    const startTestCommand = vscode.commands.registerCommand('test-monitor.start', () => {
+    const startTestCommand = vscode.commands.registerCommand('efrei.start', () => {
         if (!extension) return;
         extension.startTestMonitor();
     });
@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    const outputChannel = vscode.window.createOutputChannel('Test Monitor');
+    const outputChannel = vscode.window.createOutputChannel('Clash of code');
     outputChannel.appendLine('Extension deactivated');
     console.log('Extension deactivated');
 
