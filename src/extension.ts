@@ -1,12 +1,21 @@
 import * as vscode from 'vscode';
 import { TestMonitorExtension } from './TestMonitorExtension';
-
+import { readPackageJson } from './utils/packageJson';
 let extension: TestMonitorExtension | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Clash of code');
     outputChannel.appendLine('Extension activated');
-    console.log('Extension activated');
+    
+    // Check if we're in a Node.js project
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders) {
+        try {
+            await readPackageJson(workspaceFolders[0].uri.fsPath);
+        } catch {
+            vscode.window.showWarningMessage('No package.json found. Some features may not work until you initialize a Node.js project.');
+        }
+    }
     
     extension = new TestMonitorExtension(context);
     await extension.initialize();

@@ -185,7 +185,6 @@ export class TestMonitorExtension {
             testRunner = 'mocha';
             version = packageJson.dependencies?.mocha || packageJson.devDependencies?.mocha;
         }
-
         return { name: testRunner, version, config };
     }
 
@@ -420,8 +419,17 @@ export class TestMonitorExtension {
                 vscode.window.showErrorMessage('No workspace folder found');
                 return;
             }
-
+    
             const workspacePath = workspaceFolders[0].uri.fsPath;
+            
+            // Check for package.json first
+            try {
+                await readPackageJson(workspacePath);
+            } catch (error) {
+                vscode.window.showErrorMessage('No package.json found. Please initialize a Node.js project first.');
+                this.outputChannel.appendLine(`Error: ${error}`);
+                return;
+            }
             const startTime = new Date();
 
             // Update status bar
