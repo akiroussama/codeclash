@@ -2,7 +2,7 @@
   "name": "clash-of-code",
   "displayName": "ClashOfCode",
   "description": "Competitive coding test monitor",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "publisher": "oakir",
   "engines": {
     "vscode": "^1.89.0"
@@ -11,7 +11,7 @@
     "Testing"
   ],
   "activationEvents": [
-    "onCommand:test-monitor.start",
+    "onCommand:efrei.start",
     "workspaceContains:package.json"
   ],
   "changelog": {
@@ -40,27 +40,27 @@
   "contributes": {
     "commands": [
       {
-        "command": "test-monitor.start",
-        "title": "Start Test Monitor",
-        "category": "Test Monitor",
+        "command": "efrei.start",
+        "title": "Start Clash Of Code",
+        "category": "Efrei",
         "icon": "$(beaker)"
       },
       {
-        "command": "test-monitor.startWatch",
-        "title": "Start Test Watch Mode",
+        "command": "efrei.startWatch",
+        "title": "Start Clash Of Code Watch Mode",
         "category": "Test Monitor",
         "icon": "$(eye)"
       },
       {
-        "command": "test-monitor.stopWatch",
-        "title": "Stop Test Watch Mode",
-        "category": "Test Monitor",
+        "command": "efrei.stopWatch",
+        "title": "Stop Clash Of Code Watch Mode",
+        "category": "Efrei",
         "icon": "$(eye-closed)"
       }
     ],
     "keybindings": [
       {
-        "command": "test-monitor.startWatch",
+        "command": "efrei.startWatch",
         "key": "ctrl+alt+w",
         "mac": "cmd+alt+w",
         "when": "editorTextFocus"
@@ -69,7 +69,7 @@
     "menus": {
       "editor/title": [
         {
-          "command": "test-monitor.start",
+          "command": "efrei.start",
           "group": "navigation",
           "when": "resourceFilename =~ /\\.(test|spec)\\.(js|ts|jsx|tsx)$/"
         }

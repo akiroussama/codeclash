@@ -141,6 +141,75 @@ export class TestMonitorExtension {
 
         return { name: testRunner, version, config };
     }
+private parseTestResultsV3(output: string): TestResult {
+    this.outputChannel.appendLine('Parsing test results');
+    const results: TestResult = {
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        duration: 0,
+        total: 0,
+        testFiles: [],
+        failureDetails: []
+    };
+
+    // Remove ANSI escape codes
+    const cleanOutput = output.replace(/\x1b$[0-9;]*m/g, '');
+
+    // Parse test files and their status for Vitest
+    const fileTestPattern = /([^\s]+\.(?:test|spec)\.[jt]sx?)\s*$\s*(\d+)\s*tests?\s*$/g;
+    let fileMatch;
+    while ((fileMatch = fileTestPattern.exec(cleanOutput)) !== null) {
+        results.testFiles.push(fileMatch[1]);
+    }
+
+    // Parse overall test results for Vitest
+    const failedPattern = /(\d+)\s*failed/;
+    const passedPattern = /(\d+)\s*passed/;
+    const totalPattern = /Tests\s*(\d+)\s*failed\s*\|\s*(\d+)\s*passed\s*$(\d+)$/;
+
+    const failedMatch = cleanOutput.match(failedPattern);
+    const passedMatch = cleanOutput.match(passedPattern);
+    const totalMatch = cleanOutput.match(totalPattern);
+
+    if (failedMatch) {
+        results.failed = parseInt(failedMatch[1]);
+    }
+
+    if (passedMatch) {
+        results.passed = parseInt(passedMatch[1]);
+    }
+
+    if (totalMatch) {
+        results.total = parseInt(totalMatch[3]);
+    } else {
+        // If total is not directly available, calculate it
+        results.total = results.failed + results.passed;
+    }
+
+    // Parse duration
+    const durationPattern = /Duration\s*(\d+(?:\.\d+)?)(m?s)/;
+    const durationMatch = cleanOutput.match(durationPattern);
+    if (durationMatch) {
+        const value = parseFloat(durationMatch[1]);
+        const unit = durationMatch[2];
+        results.duration = unit === 'ms' ? value / 1000 : value;
+    }
+
+    // Parse failure details
+    const failurePattern = /×\s*(.*?)\s*(\d+)ms\n\s*→\s*((?:[^×]|[\s\S])*?)(?=\n\s*(?:×|\n|Test Files|$))/g;
+    let failureMatch;
+    while ((failureMatch = failurePattern.exec(cleanOutput)) !== null) {
+        results.failureDetails.push({
+            testName: failureMatch[1].trim(),
+            error: failureMatch[3].trim(),
+            duration: parseInt(failureMatch[2])
+        });
+    }
+
+    console.log('Parsed test results:', results);
+    return results;
+}
     private parseTestResultsV2(output: string): TestResult {
         this.outputChannel.appendLine('Parsing test results');
         const results: TestResult = {
@@ -317,6 +386,9 @@ export class TestMonitorExtension {
             let testResults = this.parseTestResults(data);
             if (!testResults.total) {
                 testResults = this.parseTestResultsV2(data);
+                if (!testResults.total) {
+                    testResults = this.parseTestResultsV3(data);
+                }
             }
             this.sendTestStatusUpdate(testResults, startTime);
         });
