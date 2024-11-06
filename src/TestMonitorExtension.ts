@@ -4,6 +4,7 @@ import axios from 'axios';
 import { getSystemInfo } from './systemInfo';
 import { readPackageJson } from './utils/packageJson';
 import { TestResult, TestRunMetadata } from './types';
+import * as process from 'process';
 
 export class TestMonitorExtension {
     private projectInfo: any;
@@ -384,10 +385,13 @@ private parseTestResultsV3(output: string): TestResult {
             output += data;
             this.testOutputChannel.append(data);
             let testResults = this.parseTestResults(data);
+            this.outputChannel.appendLine(`Initial parse results: ${JSON.stringify(testResults)}`);
             if (!testResults.total) {
                 testResults = this.parseTestResultsV2(data);
+                this.outputChannel.appendLine(`V2 parse results: ${JSON.stringify(testResults)}`);
                 if (!testResults.total) {
                     testResults = this.parseTestResultsV3(data);
+                    this.outputChannel.appendLine(`V3 parse results: ${JSON.stringify(testResults)}`);
                 }
             }
             this.sendTestStatusUpdate(testResults, startTime);
@@ -403,7 +407,16 @@ private parseTestResultsV3(output: string): TestResult {
             this.outputChannel.appendLine(`Test process closed with code: ${code}`);
             const endTime = new Date();
             const duration = endTime.getTime() - startTime.getTime();
-            const testResults = this.parseTestResults(output);
+           let testResults = this.parseTestResults(output);
+            this.outputChannel.appendLine(`Initial parse results: ${JSON.stringify(testResults)}`);
+            if (!testResults.total) {
+                testResults = this.parseTestResultsV2(output);
+                this.outputChannel.appendLine(`V2 parse results: ${JSON.stringify(testResults)}`);
+                if (!testResults.total) {
+                    testResults = this.parseTestResultsV3(output);
+                    this.outputChannel.appendLine(`V3 parse results: ${JSON.stringify(testResults)}`);
+                }
+            }
 
             // Update status bar with results
             this.updateStatusBar(testResults);
