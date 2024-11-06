@@ -20,8 +20,8 @@ export class TestMonitorExtension {
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-        this.testOutputChannel = vscode.window.createOutputChannel('Test Monitor');
-        this.outputChannel = vscode.window.createOutputChannel('Test Monitor Debug');
+        this.testOutputChannel = vscode.window.createOutputChannel('Clash of Code');
+        this.outputChannel = vscode.window.createOutputChannel('Clash of Code Debug');
         this.outputChannel.appendLine('TestMonitorExtension initialized');
     }
 

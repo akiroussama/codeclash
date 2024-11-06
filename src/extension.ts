@@ -4,7 +4,7 @@ import { TestMonitorExtension } from './TestMonitorExtension';
 let extension: TestMonitorExtension | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
-    const outputChannel = vscode.window.createOutputChannel('Test Monitor');
+    const outputChannel = vscode.window.createOutputChannel('Clash of code');
     outputChannel.appendLine('Extension activated');
     console.log('Extension activated');
     
@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    const outputChannel = vscode.window.createOutputChannel('Test Monitor');
+    const outputChannel = vscode.window.createOutputChannel('Clash of code');
     outputChannel.appendLine('Extension deactivated');
     console.log('Extension deactivated');
 
