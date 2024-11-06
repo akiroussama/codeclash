@@ -13,17 +13,17 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('Extension initialized');
 
     // Register commands
-    const startWatchCommand = vscode.commands.registerCommand('test-monitor.startWatch', () => {
+    const startWatchCommand = vscode.commands.registerCommand('efrei.startWatch', () => {
         if (!extension) return;
         extension.startWatchMode();
     });
 
-    const stopWatchCommand = vscode.commands.registerCommand('test-monitor.stopWatch', () => {
+    const stopWatchCommand = vscode.commands.registerCommand('efrei.stopWatch', () => {
         if (!extension) return;
         extension.stopWatchMode();
     });
 
-    const startTestCommand = vscode.commands.registerCommand('test-monitor.start', () => {
+    const startTestCommand = vscode.commands.registerCommand('efrei.start', () => {
         if (!extension) return;
         extension.startTestMonitor();
     });
