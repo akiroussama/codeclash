@@ -55,14 +55,14 @@ export class TestMonitorExtension {
             }
 
             // Set up status bar item
-            this.statusBarItem.text = "$(beaker) Run Tests";
-            this.statusBarItem.command = 'test-monitor.start';
-            this.statusBarItem.tooltip = 'Run Tests';
+            this.statusBarItem.text = "$(beaker) Clash Of Code";
+            this.statusBarItem.command = 'efrei.start';
+            this.statusBarItem.tooltip = 'Start clash of code';
             this.statusBarItem.show();
         } catch (error) {
             this.outputChannel.appendLine(`Error in initialize: ${error}`);
             // Set default values even if initialization fails
-            this.statusBarItem.text = "$(beaker) Run Tests";
+            this.statusBarItem.text = "$(beaker) Clash of Code";
             this.statusBarItem.show();
         }
     }
@@ -172,10 +172,6 @@ export class TestMonitorExtension {
             this.outputChannel.appendLine(`Warning: Could not read package.json: ${error}. Using default values.`);
             return { name: 'unknown', version: '', config: {} };
         }
-
-        let testRunner = 'unknown';
-        let version = '';
-        let config = {};
 
         if (packageJson.dependencies?.vitest || packageJson.devDependencies?.vitest) {
             testRunner = 'vitest';
