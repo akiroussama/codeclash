@@ -37,8 +37,8 @@ export class TestMonitorExtension {
 
         // Set up status bar item
         this.statusBarItem.text = "$(beaker) Run Tests";
-        this.statusBarItem.command = 'test-monitor.start';
-        this.statusBarItem.tooltip = 'Run Tests';
+        this.statusBarItem.command = 'efrei.start';
+        this.statusBarItem.tooltip = 'Start the Clash Of Code';
         this.statusBarItem.show();
     }
 
