@@ -11,7 +11,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
         try {
-            await readPackageJson(workspaceFolders[0].uri.fsPath);
+            await readPackageJson(workspaceFolders[0].uri.fsPath, outputChannel);
         } catch {
             vscode.window.showWarningMessage('No package.json found. Some features may not work until you initialize a Node.js project.');
         }

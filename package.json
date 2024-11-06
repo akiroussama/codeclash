@@ -2,8 +2,9 @@
   "name": "clash-of-code",
   "displayName": "ClashOfCode",
   "description": "Competitive coding test monitor",
-  "version": "4.4.0",
+  "version": "4.5.2",
   "publisher": "oakir",
+  "icon": "images/icon.png",
   "engines": {
     "vscode": "^1.89.0"
   },

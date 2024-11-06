@@ -132,7 +132,7 @@ export class TestMonitorExtension {
     private async getProjectInfo(workspacePath: string): Promise<any> {
         this.outputChannel.appendLine(`Fetching project info from workspace: ${workspacePath}`);
         try {
-            const packageJson = await readPackageJson(workspacePath);
+            const packageJson = await readPackageJson(workspacePath, this.outputChannel);
             this.outputChannel.appendLine(`Project info found - Name: ${packageJson.name}, Version: ${packageJson.version}`);
             this.outputChannel.appendLine(`Dependencies count: ${Object.keys(packageJson.dependencies || {}).length}`);
             this.outputChannel.appendLine(`Available scripts: ${Object.keys(packageJson.scripts || {}).join(', ')}`);
@@ -159,7 +159,7 @@ export class TestMonitorExtension {
         let version = '';
         let config = {};
     
-        const packageJson = await readPackageJson(workspacePath);
+        const packageJson = await readPackageJson(workspacePath, this.outputChannel);
         try {
             this.outputChannel.appendLine(`Package.json dependencies: ${JSON.stringify(packageJson.dependencies)}`);
             this.outputChannel.appendLine(`Package.json devDependencies: ${JSON.stringify(packageJson.devDependencies)}`);
@@ -424,7 +424,7 @@ export class TestMonitorExtension {
             
             // Check for package.json first
             try {
-                await readPackageJson(workspacePath);
+                await readPackageJson(workspacePath, this.outputChannel);
             } catch (error) {
                 vscode.window.showErrorMessage('No package.json found. Please initialize a Node.js project first.');
                 this.outputChannel.appendLine(`Error: ${error}`);
