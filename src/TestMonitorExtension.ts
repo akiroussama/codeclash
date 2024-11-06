@@ -44,20 +44,27 @@ export class TestMonitorExtension {
     }
 
     async initialize() {
-        this.appendLineWithLimit(`Initializing extension with context: ${JSON.stringify(this.context.extension.id)}`);
-        this.username = this.context.globalState.get('username') || '';
-        this.appendLineWithLimit(`Retrieved username: ${this.username}`);
-        
-        if (!this.username) {
-            this.username = await this.getGithubUsername();
-            this.appendLineWithLimit(`User: ${this.username}`);
-        }
+        try {
+            this.appendLineWithLimit(`Initializing extension with context: ${JSON.stringify(this.context.extension.id)}`);
+            this.username = this.context.globalState.get('username') || '';
+            this.appendLineWithLimit(`Retrieved username: ${this.username}`);
+            
+            if (!this.username) {
+                this.username = await this.getGithubUsername();
+                this.appendLineWithLimit(`User: ${this.username}`);
+            }
 
-        // Set up status bar item
-        this.statusBarItem.text = "$(beaker) Run Tests";
-        this.statusBarItem.command = 'test-monitor.start';
-        this.statusBarItem.tooltip = 'Run Tests';
-        this.statusBarItem.show();
+            // Set up status bar item
+            this.statusBarItem.text = "$(beaker) Run Tests";
+            this.statusBarItem.command = 'test-monitor.start';
+            this.statusBarItem.tooltip = 'Run Tests';
+            this.statusBarItem.show();
+        } catch (error) {
+            this.outputChannel.appendLine(`Error in initialize: ${error}`);
+            // Set default values even if initialization fails
+            this.statusBarItem.text = "$(beaker) Run Tests";
+            this.statusBarItem.show();
+        }
     }
 
     private async getGithubUsername(): Promise<string | undefined> {
@@ -130,22 +137,42 @@ export class TestMonitorExtension {
             this.outputChannel.appendLine(`Dependencies count: ${Object.keys(packageJson.dependencies || {}).length}`);
             this.outputChannel.appendLine(`Available scripts: ${Object.keys(packageJson.scripts || {}).join(', ')}`);
             return {
-                name: packageJson.name,
-                version: packageJson.version,
-                dependencies: packageJson.dependencies,
-                scripts: packageJson.scripts
+                name: packageJson.name || 'unknown',
+                version: packageJson.version || '0.0.0',
+                dependencies: packageJson.dependencies || {},
+                scripts: packageJson.scripts || {}
             };
         } catch (error) {
-            this.outputChannel.appendLine(`Error fetching project info: ${error}`);
-            return undefined;
+            this.outputChannel.appendLine(`Warning: Could not read package.json: ${error}. Using default values.`);
+            return {
+                name: 'unknown',
+                version: '0.0.0',
+                dependencies: {},
+                scripts: {}
+            };
         }
     }
 
     private async getTestRunnerInfo(workspacePath: string): Promise<any> {
         this.outputChannel.appendLine(`Fetching test runner info from workspace: ${workspacePath}`);
+        let testRunner = 'unknown';
+        let version = '';
+        let config = {};
+    
         const packageJson = await readPackageJson(workspacePath);
-        this.outputChannel.appendLine(`Package.json dependencies: ${JSON.stringify(packageJson.dependencies)}`);
-        this.outputChannel.appendLine(`Package.json devDependencies: ${JSON.stringify(packageJson.devDependencies)}`);
+        try {
+            this.outputChannel.appendLine(`Package.json dependencies: ${JSON.stringify(packageJson.dependencies)}`);
+            this.outputChannel.appendLine(`Package.json devDependencies: ${JSON.stringify(packageJson.devDependencies)}`);
+    
+            if (packageJson.dependencies?.vitest || packageJson.devDependencies?.vitest) {
+                testRunner = 'vitest';
+                version = packageJson.dependencies?.vitest || packageJson.devDependencies?.vitest;
+            }
+        } catch (error) {
+            this.outputChannel.appendLine(`Warning: Could not read package.json: ${error}. Using default values.`);
+            return { name: 'unknown', version: '', config: {} };
+        }
+
         let testRunner = 'unknown';
         let version = '';
         let config = {};
@@ -388,118 +415,136 @@ export class TestMonitorExtension {
     }
 
     async startTestMonitor() {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        this.outputChannel.appendLine(`Starting test monitor at ${new Date().toISOString()}`);
-        this.outputChannel.appendLine(`Workspace folders: ${JSON.stringify(workspaceFolders?.map(f => f.uri.fsPath))}`);
-        
-        if (!workspaceFolders) {
-            this.outputChannel.appendLine(`No workspace folders found - Aborting`);
-            vscode.window.showErrorMessage('No workspace folder found');
-            return;
-        }
-
-        const workspacePath = workspaceFolders[0].uri.fsPath;
-        const startTime = new Date();
-        this.outputChannel.appendLine(`Using workspace path: ${workspacePath}`);
-        this.outputChannel.appendLine(`Start time: ${startTime.toISOString()}`);
-
-        // Update status bar to show running state
-        this.statusBarItem.text = this.isWatching ? 
-            "$(sync~spin) Running tests (Watch Mode)..." :
-            "$(sync~spin) Running tests...";
-        this.statusBarItem.show();
-
-        // Update project information
-        this.gitInfo = await this.getGitInfo(workspacePath);
-        this.projectInfo = await this.getProjectInfo(workspacePath);
-        this.testRunnerInfo = await this.getTestRunnerInfo(workspacePath);
-
-        let output = '';
-        let errorOutput = '';
-
-        const child = exec('npm run test', { cwd: workspacePath });
-
-        child.stdout?.on('data', (data) => {
-            this.outputChannel.appendLine(`Received stdout data at ${new Date().toISOString()}`);
-            this.outputChannel.appendLine(`Stdout chunk size: ${data.length} characters`);
-            output += data;
-            this.outputChannel.appendLine(`Total output size: ${output.length} characters`);
-            this.testOutputChannel.append(data);
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            this.outputChannel.appendLine(`Starting test monitor at ${new Date().toISOString()}`);
             
-            let testResults = this.parseTestResults(data);
-            this.outputChannel.appendLine(` V1 `);
-            if (!testResults.total) {
-                testResults = this.parseTestResultsV2(data);
-                this.outputChannel.appendLine(` V2 `);
-                if (!testResults.total) {
-                    testResults = this.parseTestResultsV3(data);
-                    this.outputChannel.appendLine(` V3 `);
-                }
+            if (!workspaceFolders) {
+                this.outputChannel.appendLine(`No workspace folders found - Aborting`);
+                vscode.window.showErrorMessage('No workspace folder found');
+                return;
             }
-            this.outputChannel.appendLine(` data after parsing : ${testResults}`);
-            this.sendTestStatusUpdate(testResults, startTime);
-        });
 
-        child.stderr?.on('data', (data) => {
-            this.outputChannel.appendLine(`Received stderr data at ${new Date().toISOString()}`);
-            this.outputChannel.appendLine(`Stderr data: ${data}`);
-            errorOutput += data;
-            this.testOutputChannel.append(data);
-        });
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const startTime = new Date();
 
-        child.on('close', async (code) => {
-            this.outputChannel.appendLine(`Test process closed at ${new Date().toISOString()}`);
-            this.outputChannel.appendLine(`Exit code: ${code}`);
-            this.outputChannel.appendLine(`Total stdout size: ${output.length} characters`);
-            this.outputChannel.appendLine(`Total stderr size: ${errorOutput.length} characters`);
-            this.outputChannel.appendLine(`Test process closed with code: ${code}`);
-            const endTime = new Date();
-            const duration = endTime.getTime() - startTime.getTime();
-            const testResults = this.parseTestResults(output);
-
-            // Update status bar with results
-            this.updateStatusBar(testResults);
-
-            const metadata: TestRunMetadata = {
-                timestamp: new Date().toISOString(),
-                projectInfo: this.projectInfo,
-                environment: {
-                    nodeVersion: process.version,
-                    vscodeVersion: vscode.version,
-                    platform: process.platform,
-                    osInfo: await getSystemInfo(),
-                    workspace: {
-                        name: workspaceFolders[0].name,
-                        path: workspacePath,
-                        gitInfo: this.gitInfo
-                    }
-                },
-                testRunner: this.testRunnerInfo,
-                execution: {
-                    startTime: startTime.toISOString(),
-                    endTime: endTime.toISOString(),
-                    duration,
-                    exitCode: code || 0
-                }
-            };
+            // Update status bar
+            this.statusBarItem.text = this.isWatching ? 
+                "$(sync~spin) Running tests (Watch Mode)..." :
+                "$(sync~spin) Running tests...";
+            this.statusBarItem.show();
 
             try {
-                this.outputChannel.appendLine(` sending data to server : ${testResults}`);
-                await axios.post('https://codeclashserver.onrender.com/test-results', {
-                    testResults,
-                    metadata,
-                    rawOutput: { stdout: output, stderr: errorOutput }
-                });
-                vscode.window.showInformationMessage('Test results sent successfully!');
+                this.gitInfo = await this.getGitInfo(workspacePath);
             } catch (error) {
-                vscode.window.showErrorMessage('Failed to send test results.');
-                console.error('Error sending test results:', error);
-                this.outputChannel.appendLine(`Error sending test results: ${error}`);
+                this.outputChannel.appendLine(`Error getting git info: ${error}`);
+                this.gitInfo = { branch: 'unknown', commit: 'unknown', remote: 'unknown' };
             }
 
-            this.testOutputChannel.show();
-            this.outputChannel.appendLine(`Sending test results to API`);
-        });
+            try {
+                this.projectInfo = await this.getProjectInfo(workspacePath);
+            } catch (error) {
+                this.outputChannel.appendLine(`Error getting project info: ${error}`);
+                this.projectInfo = { name: 'unknown', version: '0.0.0', dependencies: {}, scripts: {} };
+            }
+
+            try {
+                this.testRunnerInfo = await this.getTestRunnerInfo(workspacePath);
+            } catch (error) {
+                this.outputChannel.appendLine(`Error getting test runner info: ${error}`);
+                this.testRunnerInfo = { name: 'unknown', version: '', config: {} };
+            }
+
+            let output = '';
+            let errorOutput = '';
+
+            const child = exec('npm run test', { cwd: workspacePath });
+
+            child.stdout?.on('data', (data) => {
+                try {
+                    this.outputChannel.appendLine(`Received stdout data at ${new Date().toISOString()}`);
+                    output += data;
+                    this.testOutputChannel.append(data);
+                    
+                    let testResults = this.parseTestResults(data);
+                    if (!testResults.total) {
+                        testResults = this.parseTestResultsV2(data);
+                        if (!testResults.total) {
+                            testResults = this.parseTestResultsV3(data);
+                        }
+                    }
+                    this.sendTestStatusUpdate(testResults, startTime).catch(error => {
+                        this.outputChannel.appendLine(`Error sending test status update: ${error}`);
+                    });
+                } catch (error) {
+                    this.outputChannel.appendLine(`Error processing stdout data: ${error}`);
+                }
+            });
+
+            child.stderr?.on('data', (data) => {
+                try {
+                    this.outputChannel.appendLine(`Received stderr data: ${data}`);
+                    errorOutput += data;
+                    this.testOutputChannel.append(data);
+                } catch (error) {
+                    this.outputChannel.appendLine(`Error processing stderr data: ${error}`);
+                }
+            });
+
+            child.on('close', async (code) => {
+                try {
+                    this.outputChannel.appendLine(`Test process closed with code: ${code}`);
+                    const endTime = new Date();
+                    const duration = endTime.getTime() - startTime.getTime();
+                    const testResults = this.parseTestResults(output);
+
+                    this.updateStatusBar(testResults);
+
+                    const metadata: TestRunMetadata = {
+                        timestamp: new Date().toISOString(),
+                        projectInfo: this.projectInfo,
+                        environment: {
+                            nodeVersion: process.version,
+                            vscodeVersion: vscode.version,
+                            platform: process.platform,
+                            osInfo: await getSystemInfo(),
+                            workspace: {
+                                name: workspaceFolders[0].name,
+                                path: workspacePath,
+                                gitInfo: this.gitInfo
+                            }
+                        },
+                        testRunner: this.testRunnerInfo,
+                        execution: {
+                            startTime: startTime.toISOString(),
+                            endTime: endTime.toISOString(),
+                            duration,
+                            exitCode: code || 0
+                        }
+                    };
+
+                    try {
+                        await axios.post('https://codeclashserver.onrender.com/test-results', {
+                            testResults,
+                            metadata,
+                            rawOutput: { stdout: output, stderr: errorOutput }
+                        });
+                        vscode.window.showInformationMessage('Test results sent successfully!');
+                    } catch (error) {
+                        this.outputChannel.appendLine(`Error sending test results: ${error}`);
+                        vscode.window.showErrorMessage('Failed to send test results.');
+                    }
+                } catch (error) {
+                    this.outputChannel.appendLine(`Error in close handler: ${error}`);
+                    this.updateStatusBar({ passed: 0, failed: 0, skipped: 0, duration: 0, total: 0, testFiles: [], failureDetails: [] });
+                }
+            });
+        } catch (error) {
+            this.outputChannel.appendLine(`Error in startTestMonitor: ${error}`);
+            this.statusBarItem.text = "$(error) Test Run Failed";
+            this.statusBarItem.show();
+            vscode.window.showErrorMessage('Failed to start test monitor');
+        }
     }
 
     async startWatchMode() {
@@ -548,26 +593,30 @@ export class TestMonitorExtension {
     }
 
     private updateStatusBar(testResults: TestResult) {
-        this.outputChannel.appendLine(`Updating status bar with results: ${JSON.stringify(testResults, null, 2)}`);
-        if (!testResults.total) {
-            this.outputChannel.appendLine(`No test results - Setting default status bar text`);
-            this.statusBarItem.text = "$(beaker) No tests run";
-            return;
-        }
+        try {
+            this.outputChannel.appendLine(`Updating status bar with results: ${JSON.stringify(testResults, null, 2)}`);
+            if (!testResults.total) {
+                this.statusBarItem.text = "$(beaker) No tests run";
+                return;
+            }
 
-        const passRate = Math.round((testResults.passed / testResults.total) * 100);
-        this.outputChannel.appendLine(`Pass rate calculated: ${passRate}%`);
-        
-        if (testResults.failed > 0) {
-            this.statusBarItem.text = `$(error) Tests: ${testResults.failed} failed, ${testResults.passed} passed (${passRate}%)`;
-            this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-            this.statusBarItem.tooltip = `Failed: ${testResults.failed}\nPassed: ${testResults.passed}\nSkipped: ${testResults.skipped}\nDuration: ${testResults.duration}s`;
-        } else {
-            this.statusBarItem.text = `$(check) Tests: ${testResults.passed} passed (${passRate}%)`;
-            this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.background');
-            this.statusBarItem.tooltip = `All tests passed!\nTotal: ${testResults.total}\nDuration: ${testResults.duration}s`;
-        }
+            const passRate = Math.round((testResults.passed / testResults.total) * 100);
+            
+            if (testResults.failed > 0) {
+                this.statusBarItem.text = `$(error) Tests: ${testResults.failed} failed, ${testResults.passed} passed (${passRate}%)`;
+                this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+                this.statusBarItem.tooltip = `Failed: ${testResults.failed}\nPassed: ${testResults.passed}\nSkipped: ${testResults.skipped}\nDuration: ${testResults.duration}s`;
+            } else {
+                this.statusBarItem.text = `$(check) Tests: ${testResults.passed} passed (${passRate}%)`;
+                this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.background');
+                this.statusBarItem.tooltip = `All tests passed!\nTotal: ${testResults.total}\nDuration: ${testResults.duration}s`;
+            }
 
-        this.statusBarItem.show();
+            this.statusBarItem.show();
+        } catch (error) {
+            this.outputChannel.appendLine(`Error updating status bar: ${error}`);
+            this.statusBarItem.text = "$(warning) Status Update Error";
+            this.statusBarItem.show();
+        }
     }
 }
