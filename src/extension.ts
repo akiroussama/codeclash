@@ -327,7 +327,7 @@ function sendTestStatusUpdate(testResults: TestResult) {
         })
     };
 
-    axios.post('https://codeclashclient.onrender.com/test-status', statusUpdate)
+    axios.post('https://codeclashserver.onrender.com/test-status', statusUpdate)
         .then(() => {
             console.log('Test status update sent successfully');
         })
