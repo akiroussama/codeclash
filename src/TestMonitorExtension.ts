@@ -77,11 +77,13 @@ export class TestMonitorExtension {
                 return username;
             }
             vscode.window.showErrorMessage('No session found');
-            return undefined;
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error getting username: ${error.message}`);
-            return undefined;
         }
+
+        // Prompt for username if GitHub authentication fails or is canceled
+        await this.promptForUsername();
+        return this.username;
     }
 
     private async promptForUsername(): Promise<void> {
@@ -362,6 +364,7 @@ export class TestMonitorExtension {
         this.outputChannel.appendLine(`Project info: ${JSON.stringify(this.projectInfo, null, 2)}`);
         this.outputChannel.appendLine(`Git info: ${JSON.stringify(this.gitInfo, null, 2)}`);
         this.outputChannel.appendLine(`Test runner info: ${JSON.stringify(this.testRunnerInfo, null, 2)}`);
+        this.outputChannel.appendLine(`Test results: ${JSON.stringify(testResults, null, 2)}`);
         
         if (!testResults.total) {
             this.outputChannel.appendLine(`No test results to send - Skipping update`);
@@ -469,13 +472,13 @@ export class TestMonitorExtension {
                 try {
                     this.outputChannel.appendLine(`Received stdout data at ${new Date().toISOString()}`);
                     output += data;
-                    this.testOutputChannel.append(data);
-                    this.outputChannel.appendLine(` ######## data ######## : ${data}`);
-                    let testResults = this.parseTestResults(data);
+                    this.testOutputChannel.append(output);
+                    this.outputChannel.appendLine(` ######## data ######## : ${output}`);
+                    let testResults = this.parseTestResults(output);
                     if (!testResults.total) {
-                        testResults = this.parseTestResultsV2(data);
+                        testResults = this.parseTestResultsV2(output);
                         if (!testResults.total) {
-                            testResults = this.parseTestResultsV3(data);
+                            testResults = this.parseTestResultsV3(output);
                         }
                     }
                     this.sendTestStatusUpdate(testResults, startTime).catch(error => {
