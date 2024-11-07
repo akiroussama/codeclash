@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { TestMonitorExtension } from './TestMonitorExtension';
 import { readPackageJson } from './utils/packageJson';
-import { exec } from 'child_process';
+
 let extension: TestMonitorExtension | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -23,22 +23,16 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('Extension initialized');
 
     // Register commands
+    const startTestCommand = vscode.commands.registerCommand('efrei.start', async () => {
+        if (!extension) {
+            return;
+        }
+        await extension.startTestMonitor();
+    });
+
     const startWatchCommand = vscode.commands.registerCommand('efrei.startWatch', () => {
         if (!extension) return;
         extension.startWatchMode();
-
-        // Execute 'npm run test'
-        exec('npm run test --watch', (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error executing npm run test: ${error.message}`);
-                return;
-            }
-            if (stderr) {
-                console.error(`stderr: ${stderr}`);
-                return;
-            }
-            console.log(`stdout: ${stdout}`);
-        });
     });
 
     const stopWatchCommand = vscode.commands.registerCommand('efrei.stopWatch', () => {
@@ -46,34 +40,14 @@ export async function activate(context: vscode.ExtensionContext) {
         extension.stopWatchMode();
     });
 
-    const startTestCommand = vscode.commands.registerCommand('efrei.start', () => {
-        if (!extension) return;
-        extension.startWatchMode();
-
-        // Execute 'npm run test'
-        exec('npm run test', (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error executing npm run test: ${error.message}`);
-                return;
-            }
-            if (stderr) {
-                console.error(`stderr: ${stderr}`);
-                return;
-            }
-            console.log(`stdout: ${stdout}`);
-        });
-    });
-
-    context.subscriptions.push(startWatchCommand, stopWatchCommand, startTestCommand);
+    context.subscriptions.push(startTestCommand, startWatchCommand, stopWatchCommand);
     outputChannel.appendLine('Commands registered');
 }
 
 export function deactivate() {
     const outputChannel = vscode.window.createOutputChannel('Clash of code');
     outputChannel.appendLine('Extension deactivated');
-    console.log('Extension deactivated');
 
-    // Clean up resources
     if (extension) {
         extension.stopWatchMode();
     }
