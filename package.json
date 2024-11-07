@@ -2,7 +2,7 @@
   "name": "clash-of-code",
   "displayName": "ClashOfCode",
   "description": "Competitive coding test monitor",
-  "version": "4.5.5",
+  "version": "4.6.2",
   "publisher": "oakir",
   "icon": "images/logo.png",
   "engines": {
@@ -16,8 +16,8 @@
     "workspaceContains:package.json"
   ],
   "changelog": {
-      "4.5.5": [
-        "update logo"
+      "4.0.0": [
+        "concatenate output data"
       ]
   },
   "repository": {
