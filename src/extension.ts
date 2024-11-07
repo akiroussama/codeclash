@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { TestMonitorExtension } from './TestMonitorExtension';
 import { readPackageJson } from './utils/packageJson';
+import { exec } from 'child_process';
 let extension: TestMonitorExtension | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -25,6 +26,19 @@ export async function activate(context: vscode.ExtensionContext) {
     const startWatchCommand = vscode.commands.registerCommand('efrei.startWatch', () => {
         if (!extension) return;
         extension.startWatchMode();
+
+        // Execute 'npm run test'
+        exec('npm run test --watch', (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing npm run test: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                console.error(`stderr: ${stderr}`);
+                return;
+            }
+            console.log(`stdout: ${stdout}`);
+        });
     });
 
     const stopWatchCommand = vscode.commands.registerCommand('efrei.stopWatch', () => {
@@ -34,7 +48,20 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const startTestCommand = vscode.commands.registerCommand('efrei.start', () => {
         if (!extension) return;
-        extension.startTestMonitor();
+        extension.startWatchMode();
+
+        // Execute 'npm run test'
+        exec('npm run test', (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing npm run test: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                console.error(`stderr: ${stderr}`);
+                return;
+            }
+            console.log(`stdout: ${stdout}`);
+        });
     });
 
     context.subscriptions.push(startWatchCommand, stopWatchCommand, startTestCommand);
