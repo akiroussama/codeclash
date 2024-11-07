@@ -264,7 +264,7 @@ export class TestMonitorExtension {
     }
 
     private parseTestResultsV2(output: string): TestResult {
-        this.outputChannel.appendLine(`Parsing test results`);
+        this.outputChannel.appendLine(`Parsing test results v2`);
         const results: TestResult = {
             passed: 0,
             failed: 0,
@@ -299,7 +299,7 @@ export class TestMonitorExtension {
         if (durationMatch) {
             results.duration = parseInt(durationMatch[1]) / 1000; // Convert to seconds
         }
-    
+        this.outputChannel.appendLine(`Parsed results V2: ${JSON.stringify(results, null, 2)}`);
         return results;
     }
     private parseTestResults(output: string): TestResult {
@@ -352,6 +352,7 @@ export class TestMonitorExtension {
         }
 
         console.log('Parsed test results:', results);
+        this.outputChannel.appendLine(`Parsed results V1: ${JSON.stringify(results, null, 2)}`);
         return results;
     }
 
@@ -469,7 +470,7 @@ export class TestMonitorExtension {
                     this.outputChannel.appendLine(`Received stdout data at ${new Date().toISOString()}`);
                     output += data;
                     this.testOutputChannel.append(data);
-                    
+                    this.outputChannel.appendLine(` ######## data ######## : ${data}`);
                     let testResults = this.parseTestResults(data);
                     if (!testResults.total) {
                         testResults = this.parseTestResultsV2(data);

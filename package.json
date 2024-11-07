@@ -2,7 +2,7 @@
   "name": "clash-of-code",
   "displayName": "ClashOfCode",
   "description": "Competitive coding test monitor",
-  "version": "4.5.5",
+  "version": "4.5.6",
   "publisher": "oakir",
   "icon": "images/logo.png",
   "engines": {
@@ -17,7 +17,7 @@
   ],
   "changelog": {
       "4.0.0": [
-        "first stable version, will focus on testing with real poc project"
+        "LOG THE TEST RESULT FOR DEBUGGING"
       ]
   },
   "repository": {
